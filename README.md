@@ -8,4 +8,11 @@ An evaluation-first customer operations agent inspired by the [Monzo Ops Agent](
 
 ## Status
 
-Project initialization. Implementation will follow.
+The first typed contract is implemented in `src/momo_ops_agent/contracts.py`:
+
+- Versioned `CaseState` with explicit transitions and timezone-aware timestamps
+- Intent catalog with confidence thresholds, context scopes, risk levels, and allowed actions
+- Intent-gated transaction/refund context with no raw PII fields
+- Pydantic validation and JSON Schema support
+
+See [the contract design](docs/case-state.md) for the initial scope and design references.
