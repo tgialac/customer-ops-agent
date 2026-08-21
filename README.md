@@ -31,3 +31,14 @@ The output is an English single-turn benchmark mapped to the initial project
 intents. It is intentionally kept separate from the Vietnamese synthetic MoMo
 golden set at [`data/golden/momo_golden_v1.jsonl`](data/golden/momo_golden_v1.jsonl),
 which evaluates state transitions, tool calls, and outcomes.
+
+## Evaluation baseline
+
+Run the offline rule-based harness and stateful backend with:
+
+```bash
+python -m momo_ops_agent.eval_runner
+```
+
+See [the evaluation design](docs/evaluation.md) for the trace, grader, and
+mock-backend boundaries.

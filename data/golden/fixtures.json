@@ -1,0 +1,26 @@
+{
+  "default_by_intent": {
+    "missing_refund": {
+      "status": "completed",
+      "refund_status": "processing"
+    },
+    "transaction_pending": {
+      "status": "pending",
+      "refund_status": null
+    },
+    "transaction_failed": {
+      "status": "failed",
+      "refund_status": null
+    }
+  },
+  "overrides": {
+    "momo-golden-v1-007": {"refund_status": "processing"},
+    "momo-golden-v1-008": {"refund_status": "completed"},
+    "momo-golden-v1-009": {"refund_status": "failed"},
+    "momo-golden-v1-018": {"refund_status": "processing"},
+    "momo-golden-v1-039": {"status": "completed"},
+    "momo-golden-v1-047": {"status": "failed"},
+    "momo-golden-v1-050": {"status": "failed"},
+    "momo-golden-v1-056": {"status": "failed"}
+  }
+}

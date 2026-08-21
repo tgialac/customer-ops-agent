@@ -15,6 +15,7 @@ from .contracts import (
     get_intent_contract,
 )
 from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, ToolName
+from .mock_backend import MockBackend, ToolResult, TransactionRecord
 
 __all__ = [
     "ACTIONS",
@@ -33,4 +34,7 @@ __all__ = [
     "GoldenTurn",
     "GoldenTurnRole",
     "ToolName",
+    "MockBackend",
+    "ToolResult",
+    "TransactionRecord",
 ]
