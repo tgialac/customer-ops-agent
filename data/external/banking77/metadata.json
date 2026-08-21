@@ -1,0 +1,25 @@
+{
+  "counts": {
+    "test": 120,
+    "total": 567,
+    "train": 447
+  },
+  "dataset": "BANKING77",
+  "notes": [
+    "External benchmark only; not the MoMo golden set.",
+    "Source examples are English single-turn utterances.",
+    "Labels are remapped to the initial MoMo Ops Agent intent contract."
+  ],
+  "project_intent_mapping": {
+    "Refund_not_showing_up": "missing_refund",
+    "failed_transfer": "transaction_failed",
+    "pending_transfer": "transaction_pending"
+  },
+  "source_files_sha256": {
+    "categories.json": "53261da888122daf2d120d925458631d9619e15d82e56052e7a42e535ce32b63",
+    "test.csv": "d12d6e3bc4c3103966ae786dc435913c0c563dfa328f5a3646d0e62cfeeb474d",
+    "train.csv": "b06e26ac675513959a63135f11b94ea7786ed02da65db93a5650d8838cbc664b"
+  },
+  "source_license": "CC BY 4.0",
+  "source_repository": "https://github.com/PolyAI-LDN/task-specific-datasets"
+}

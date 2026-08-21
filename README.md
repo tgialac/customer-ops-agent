@@ -16,3 +16,17 @@ The first typed contract is implemented in `src/momo_ops_agent/contracts.py`:
 - Pydantic validation and JSON Schema support
 
 See [the contract design](docs/case-state.md) for the initial scope and design references.
+
+## External intent benchmark
+
+Prepare the filtered [BANKING77](https://huggingface.co/datasets/PolyAI/banking77)
+subset with:
+
+```bash
+python -m pip install -e .
+python scripts/prepare_banking77.py
+```
+
+The output is an English single-turn benchmark mapped to the initial project
+intents. It is intentionally kept separate from the Vietnamese, human-reviewed
+MoMo golden set that will evaluate state transitions, tool calls, and outcomes.
