@@ -14,6 +14,7 @@ from .contracts import (
     RiskLevel,
     get_intent_contract,
 )
+from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, ToolName
 
 __all__ = [
     "ACTIONS",
@@ -28,4 +29,8 @@ __all__ = [
     "IntentPrediction",
     "RiskLevel",
     "get_intent_contract",
+    "GoldenCase",
+    "GoldenTurn",
+    "GoldenTurnRole",
+    "ToolName",
 ]

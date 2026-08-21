@@ -28,5 +28,6 @@ python scripts/prepare_banking77.py
 ```
 
 The output is an English single-turn benchmark mapped to the initial project
-intents. It is intentionally kept separate from the Vietnamese, human-reviewed
-MoMo golden set that will evaluate state transitions, tool calls, and outcomes.
+intents. It is intentionally kept separate from the Vietnamese synthetic MoMo
+golden set at [`data/golden/momo_golden_v1.jsonl`](data/golden/momo_golden_v1.jsonl),
+which evaluates state transitions, tool calls, and outcomes.
