@@ -64,6 +64,21 @@ def render_bank_transfer_response(decision: BankTransferPolicyDecision) -> str:
         ) from exc
 
 
+def is_approved_bank_transfer_response(response: str) -> bool:
+    """Return whether a response is one of the bounded policy templates."""
+
+    return response in {
+        "Giao dịch đang được đối soát. Vui lòng chờ 1–2 ngày làm việc; "
+        "nếu sau thời gian này vẫn chưa có kết quả, bộ phận hỗ trợ sẽ kiểm tra thêm.",
+        "Giao dịch đã thành công nhưng ngân hàng người nhận có thể cần "
+        "1–3 ngày làm việc để ghi nhận. Nếu quá thời gian này vẫn chưa nhận được tiền, "
+        "bộ phận hỗ trợ sẽ kiểm tra thêm.",
+        "Giao dịch không thành công. Tiền sẽ được hoàn về ví MoMo trong khoảng 1–2 ngày làm việc.",
+        "Giao dịch không thành công. Tiền sẽ được hoàn về tài khoản ngân hàng đã liên kết trong khoảng 1–2 ngày làm việc.",
+        "Giao dịch không thành công. Tiền sẽ được hoàn về nguồn tiền ban đầu trong khoảng 1–2 ngày làm việc.",
+    }
+
+
 def _return_destination_label(destination: str | None) -> str:
     return {
         "momo_wallet": "ví MoMo",

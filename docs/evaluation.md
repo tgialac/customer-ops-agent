@@ -37,6 +37,10 @@ These cases grade the final action/status/outcome and the read-only lookup
 recorded in the trace. This keeps policy acceptance separate from the broader
 synthetic intent-routing baseline.
 
+Guardrail component and runtime tests cover both rejection paths: input
+instruction hijacking must not call a backend tool, and an unapproved
+source-backed answer must become a handoff. See [the guardrail design](guardrails.md).
+
 LLM iteration uses `scripts/run_smoke_eval.py`, a fixed 12-case stratified
 gate covering missing-slot, retrieval, answer, ticket, handoff, and ambiguous
 routing behavior. The 60-case set is reserved for regression/release checks.

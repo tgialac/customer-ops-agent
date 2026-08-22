@@ -32,6 +32,7 @@ from .policies import (
     evaluate_bank_transfer_policy,
     render_bank_transfer_response,
 )
+from .guardrails import GuardrailResult, check_input, check_output
 
 
 class RouterDecision(StrictModel):
@@ -93,6 +94,8 @@ class AgentTrace(StrictModel):
     customer_text: str
     decision: AgentDecision
     tool_result: ToolResult | None = None
+    input_guardrail: GuardrailResult | None = None
+    output_guardrail: GuardrailResult | None = None
 
 
 class AgentRun(StrictModel):
@@ -133,16 +136,51 @@ class RuleBasedAgent:
             history.append(turn)
             if turn.role is not GoldenTurnRole.CUSTOMER:
                 continue
-            router_decision = self.decide(history)
-            tool_result = self._call_tool(router_decision, backend)
-            decision = self.materialize_decision(router_decision, history, tool_result)
-            state = self._apply_decision(state, decision, tool_result, history)
+            input_guardrail = check_input(turn.text)
+            if input_guardrail.passed:
+                router_decision = self.decide(history)
+                tool_result = self._call_tool(router_decision, backend)
+                decision = self.materialize_decision(router_decision, history, tool_result)
+            else:
+                router_decision = RouterDecision(
+                    intent=IntentPrediction(
+                        intent=IntentName.UNKNOWN,
+                        confidence=1.0,
+                        source="rule",
+                    ),
+                    action=CaseAction.HANDOFF,
+                    policy_violation=(
+                        f"input_guardrail:{input_guardrail.reason or 'rejected'}"
+                    ),
+                )
+                tool_result = None
+                decision = self.materialize_decision(router_decision, history)
+            output_guardrail = check_output(
+                intent=decision.intent.intent,
+                action=decision.action,
+                response=decision.response,
+                policy_source=decision.policy_source,
+            )
+            if not output_guardrail.passed:
+                decision = self._output_guardrail_handoff(
+                    decision, output_guardrail.reason or "rejected"
+                )
+            state = self._apply_decision(
+                state,
+                decision,
+                tool_result,
+                history,
+                input_guardrail,
+                output_guardrail,
+            )
             trace.append(
                 AgentTrace(
                     turn_index=turn_index,
                     customer_text=turn.text,
                     decision=decision,
                     tool_result=tool_result,
+                    input_guardrail=input_guardrail,
+                    output_guardrail=output_guardrail,
                 )
             )
 
@@ -480,7 +518,13 @@ class RuleBasedAgent:
         decision: AgentDecision,
         tool_result: ToolResult | None = None,
         history: list[GoldenTurn] | None = None,
+        input_guardrail: GuardrailResult | None = None,
+        output_guardrail: GuardrailResult | None = None,
     ) -> CaseState:
+        if input_guardrail is not None and not input_guardrail.passed:
+            state = state.record_guardrail_failure("input")
+        if output_guardrail is not None and not output_guardrail.passed:
+            state = state.record_guardrail_failure("output")
         state = state.accept_intent(decision.intent)
         if (
             tool_result is not None
@@ -531,6 +575,22 @@ class RuleBasedAgent:
         if decision.tool is None:
             return None
         return backend.execute(decision.tool, decision.tool_args)
+
+    def _output_guardrail_handoff(
+        self, decision: AgentDecision, reason: str
+    ) -> AgentDecision:
+        values = decision.model_dump(
+            exclude={"action", "tool", "tool_args", "policy_violation", "outcome", "response"}
+        )
+        return AgentDecision(
+            **values,
+            action=CaseAction.HANDOFF,
+            tool=None,
+            tool_args={},
+            policy_violation=f"output_guardrail:{reason}",
+            outcome=OutcomeName.POLICY_GUARDRAIL_HANDOFF,
+            response="handoff",
+        )
 
     def _add_transaction_context(
         self, state: CaseState, tool_result: ToolResult, wrong_details_reported: bool

@@ -344,6 +344,18 @@ class CaseState(StrictModel):
             updated_at=_utc_now(),
         )
 
+    def record_guardrail_failure(
+        self, stage: Literal["input", "output"]
+    ) -> "CaseState":
+        updates = {
+            "input_guardrail_failures": self.input_guardrail_failures,
+            "output_guardrail_failures": self.output_guardrail_failures,
+            "updated_at": _utc_now(),
+        }
+        key = f"{stage}_guardrail_failures"
+        updates[key] = updates[key] + 1
+        return self._validated_copy(**updates)
+
     def _validated_copy(self, **updates: object) -> "CaseState":
         values = self.model_dump()
         values.update(updates)
