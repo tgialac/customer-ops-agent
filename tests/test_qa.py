@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from momo_ops_agent.qa import run_answer_qa
-from momo_ops_agent.agent_harness import RuleBasedAgent
+from customer_ops_agent.qa import run_answer_qa
+from customer_ops_agent.agent_harness import RuleBasedAgent
 
 
 ROOT = Path(__file__).parents[1]

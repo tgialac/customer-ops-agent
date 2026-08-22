@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "momo-ops-agent"
+name = "customer-ops-agent"
 version = "0.1.0"
 description = "An evaluation-first customer operations agent for fintech support workflows."
 requires-python = ">=3.11"

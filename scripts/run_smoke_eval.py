@@ -11,25 +11,25 @@ import argparse
 import json
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import LLMAgent
-from momo_ops_agent.eval_runner import evaluate_case, load_cases, load_fixture_config
+from customer_ops_agent.agent_harness import LLMAgent
+from customer_ops_agent.eval_runner import evaluate_case, load_cases, load_fixture_config
 
 
 ROOT = Path(__file__).parents[1]
 SMOKE_CASE_IDS = frozenset(
     {
-        "momo-golden-v1-001",
-        "momo-golden-v1-002",
-        "momo-golden-v1-007",
-        "momo-golden-v1-009",
-        "momo-golden-v1-021",
-        "momo-golden-v1-022",
-        "momo-golden-v1-025",
-        "momo-golden-v1-031",
-        "momo-golden-v1-041",
-        "momo-golden-v1-042",
-        "momo-golden-v1-047",
-        "momo-golden-v1-060",
+        "customer-ops-golden-v1-001",
+        "customer-ops-golden-v1-002",
+        "customer-ops-golden-v1-007",
+        "customer-ops-golden-v1-009",
+        "customer-ops-golden-v1-021",
+        "customer-ops-golden-v1-022",
+        "customer-ops-golden-v1-025",
+        "customer-ops-golden-v1-031",
+        "customer-ops-golden-v1-041",
+        "customer-ops-golden-v1-042",
+        "customer-ops-golden-v1-047",
+        "customer-ops-golden-v1-060",
     }
 )
 
@@ -41,7 +41,7 @@ def main() -> None:
 
     cases = [
         case
-        for case in load_cases(ROOT / "data/golden/momo_golden_v1.jsonl")
+        for case in load_cases(ROOT / "data/golden/customer_ops_golden_v1.jsonl")
         if case.case_id in SMOKE_CASE_IDS
     ]
     fixtures = load_fixture_config(ROOT / "data/golden/fixtures.json")

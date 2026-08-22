@@ -1,5 +1,5 @@
 ---
-document_id: momo-developer-refund-api-2026-08-22
+document_id: official-developer-refund-api-2026-08-22
 title: Hoàn tiền giao dịch qua MoMo Payment API
 source_url: https://developers.momo.vn/v3/vi/docs/payment/api/payment-api/refund/
 source_kind: official_developer_docs

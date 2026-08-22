@@ -37,7 +37,7 @@ refund answer.
   mistaken recipient; this is a support/handoff path, not an automatic refund.
 
 The deterministic decision table is implemented in
-`src/momo_ops_agent/policies.py`. It treats the public windows as escalation
+`src/customer_ops_agent/policies.py`. It treats the public windows as escalation
 thresholds, not guaranteed settlement times: a pending transfer is only
 explained within 2 working days, a successful transfer with delayed posting
 within 3 working days, and a failed transfer return within 2 working days.

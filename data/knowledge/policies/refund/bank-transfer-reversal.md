@@ -1,5 +1,5 @@
 ---
-document_id: momo-faq-bank-transfer-reversal-2026-08-22
+document_id: official-faq-bank-transfer-reversal-2026-08-22
 title: Chuyển tiền đến ngân hàng bị trừ tiền nhưng người nhận chưa nhận được
 source_url: https://www.momo.vn/hoi-dap/vi-sao-tai-khoan-da-bi-tru-tien-nhung-tai-khoan-ngan-hang-nguoi-nhan-chua-nhan-duoc
 source_kind: official_faq

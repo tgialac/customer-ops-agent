@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import LLMAgent, RouterDecision, RuleBasedAgent
-from momo_ops_agent.answering import DeterministicAnswerGenerator, KnowledgeBackedAnswerer
-from momo_ops_agent.contracts import CaseAction, CaseStatus, IntentName, IntentPrediction
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
-from momo_ops_agent.mock_backend import MockBackend
-from momo_ops_agent.policies import GOOGLE_PLAY_REFUND_POLICY_SOURCE
+from customer_ops_agent.agent_harness import LLMAgent, RouterDecision, RuleBasedAgent
+from customer_ops_agent.answering import DeterministicAnswerGenerator, KnowledgeBackedAnswerer
+from customer_ops_agent.contracts import CaseAction, CaseStatus, IntentName, IntentPrediction
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
+from customer_ops_agent.mock_backend import MockBackend
+from customer_ops_agent.policies import GOOGLE_PLAY_REFUND_POLICY_SOURCE
 
 
 ROOT = Path(__file__).parents[1]

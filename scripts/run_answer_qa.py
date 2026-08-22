@@ -6,8 +6,8 @@ import argparse
 import json
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import LLMAgent, RuleBasedAgent
-from momo_ops_agent.qa import run_answer_qa
+from customer_ops_agent.agent_harness import LLMAgent, RuleBasedAgent
+from customer_ops_agent.qa import run_answer_qa
 
 
 def main() -> None:

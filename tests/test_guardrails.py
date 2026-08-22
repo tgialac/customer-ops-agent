@@ -1,8 +1,8 @@
-from momo_ops_agent.agent_harness import RuleBasedAgent
-from momo_ops_agent.contracts import CaseAction, CaseStatus, IntentName, TransactionStatus
-from momo_ops_agent.guardrails import GuardrailStage, check_input, check_output
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.agent_harness import RuleBasedAgent
+from customer_ops_agent.contracts import CaseAction, CaseStatus, IntentName, TransactionStatus
+from customer_ops_agent.guardrails import GuardrailStage, check_input, check_output
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
 
 
 def test_input_guardrail_rejects_instruction_hijacking_and_accepts_customer_text() -> None:
@@ -20,7 +20,7 @@ def test_output_guardrail_rejects_unapproved_source_backed_answer() -> None:
         intent=IntentName.BANK_TRANSFER_NOT_RECEIVED,
         action=CaseAction.ANSWER,
         response="Tiền sẽ về ngay trong vài phút.",
-        policy_source="momo-faq-bank-transfer-reversal-2026-08-22",
+        policy_source="official-faq-bank-transfer-reversal-2026-08-22",
     )
 
     assert result.stage is GuardrailStage.OUTPUT
@@ -36,7 +36,7 @@ def test_output_guardrail_binds_answer_to_the_matching_policy_key() -> None:
             "Giao dịch đang được đối soát. Vui lòng chờ 1–2 ngày làm việc; "
             "nếu sau thời gian này vẫn chưa có kết quả, bộ phận hỗ trợ sẽ kiểm tra thêm."
         ),
-        policy_source="momo-faq-bank-transfer-reversal-2026-08-22",
+        policy_source="official-faq-bank-transfer-reversal-2026-08-22",
         policy_message_key="successful_transfer_1_to_3_working_days",
     )
 

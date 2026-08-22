@@ -7,13 +7,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from momo_ops_agent.agent_harness import LLMAgent
-from momo_ops_agent.eval_runner import run_evaluation
+from customer_ops_agent.agent_harness import LLMAgent
+from customer_ops_agent.eval_runner import run_evaluation
 
 
 ROOT = Path(__file__).parents[1]
 SUITES = (
-    ("synthetic_baseline", "data/golden/momo_golden_v1.jsonl"),
+    ("synthetic_baseline", "data/golden/customer_ops_golden_v1.jsonl"),
     ("bank_transfer_not_received", "data/golden/bank_transfer_not_received_v1.jsonl"),
     ("cashback_not_received", "data/golden/cashback_not_received_v1.jsonl"),
     ("google_play_refund", "data/golden/google_play_refund_v1.jsonl"),

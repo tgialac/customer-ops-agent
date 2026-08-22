@@ -1,5 +1,5 @@
 ---
-document_id: momo-faq-cashback-not-received-2026-08-22
+document_id: official-faq-cashback-not-received-2026-08-22
 title: Không được hoàn tiền khi thanh toán dịch vụ
 source_url: https://www.momo.vn/hoi-dap/tai-sao-toi-khong-duoc-hoan-tien-khi-thanh-toan-dich-vu-nay
 source_kind: official_faq

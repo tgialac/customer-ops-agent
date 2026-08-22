@@ -1,6 +1,6 @@
 # Source-backed MoMo knowledge base
 
-The initial corpus under `data/knowledge/momo/` is based on public MoMo pages
+The initial corpus under `data/knowledge/policies/` is based on public MoMo pages
 checked on 2026-08-22. Documents are intentionally split by product scope:
 
 - `bank_transfer_reversal`: pending bank transfers and returned funds.

@@ -10,9 +10,9 @@ from pydantic import Field
 from .contracts import FundingSource, StrictModel, TransactionStatus
 
 
-BANK_TRANSFER_POLICY_SOURCE = "momo-faq-bank-transfer-reversal-2026-08-22"
-CASHBACK_POLICY_SOURCE = "momo-faq-cashback-not-received-2026-08-22"
-GOOGLE_PLAY_REFUND_POLICY_SOURCE = "momo-faq-google-play-refund-2026-08-22"
+BANK_TRANSFER_POLICY_SOURCE = "official-faq-bank-transfer-reversal-2026-08-22"
+CASHBACK_POLICY_SOURCE = "official-faq-cashback-not-received-2026-08-22"
+GOOGLE_PLAY_REFUND_POLICY_SOURCE = "official-faq-google-play-refund-2026-08-22"
 
 
 class BankTransferPolicyAction(str, Enum):

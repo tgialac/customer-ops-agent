@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import RuleBasedAgent
-from momo_ops_agent.answering import DeterministicAnswerGenerator, KnowledgeBackedAnswerer
-from momo_ops_agent.contracts import CaseAction, CaseStatus, IntentName, RefundStatus
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
-from momo_ops_agent.policies import (
+from customer_ops_agent.agent_harness import RuleBasedAgent
+from customer_ops_agent.answering import DeterministicAnswerGenerator, KnowledgeBackedAnswerer
+from customer_ops_agent.contracts import CaseAction, CaseStatus, IntentName, RefundStatus
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.policies import (
     CashbackPolicyInput,
     evaluate_cashback_policy,
 )
@@ -61,7 +61,7 @@ def test_cashback_workflow_materializes_verified_policy() -> None:
     assert run.final_decision.action is CaseAction.ANSWER
     assert run.final_decision.outcome is OutcomeName.CASHBACK_PENDING_WITHIN_24_HOURS
     assert run.final_decision.policy_source == (
-        "momo-faq-cashback-not-received-2026-08-22"
+        "official-faq-cashback-not-received-2026-08-22"
     )
     assert run.final_decision.policy_message_key == "cashback_pending_within_24_hours"
     assert run.trace[0].tool_result is not None

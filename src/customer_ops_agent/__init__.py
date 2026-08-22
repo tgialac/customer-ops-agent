@@ -1,4 +1,4 @@
-"""Contracts for the MoMo Ops Agent."""
+"""Contracts for the Customer Ops Agent."""
 
 from .contracts import (
     ACTIONS,

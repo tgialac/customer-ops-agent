@@ -1,5 +1,5 @@
-from momo_ops_agent.contracts import SlotName
-from momo_ops_agent.workflows import (
+from customer_ops_agent.contracts import SlotName
+from customer_ops_agent.workflows import (
     BANK_TRANSFER_NOT_RECEIVED_V1,
     CASHBACK_NOT_RECEIVED_V1,
     GOOGLE_PLAY_REFUND_V1,

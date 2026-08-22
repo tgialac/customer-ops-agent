@@ -2,22 +2,22 @@ from pathlib import Path
 
 import pytest
 
-from momo_ops_agent.answering import (
+from customer_ops_agent.answering import (
     AnswerDraft,
     AnswerGenerationError,
     AnswerRequest,
     KnowledgeBackedAnswerer,
     OpenAIAnswerGenerator,
 )
-from momo_ops_agent.agent_harness import RuleBasedAgent
-from momo_ops_agent.contracts import CaseAction, CaseStatus, TransactionStatus
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
-from momo_ops_agent.knowledge import KnowledgeStore
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.agent_harness import RuleBasedAgent
+from customer_ops_agent.contracts import CaseAction, CaseStatus, TransactionStatus
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName
+from customer_ops_agent.knowledge import KnowledgeStore
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
 
 
 ROOT = Path(__file__).parents[1]
-SOURCE_ID = "momo-faq-bank-transfer-reversal-2026-08-22"
+SOURCE_ID = "official-faq-bank-transfer-reversal-2026-08-22"
 
 
 class FixedGenerator:
@@ -34,7 +34,7 @@ class FixedGenerator:
 
 def _answerer(generator: object) -> KnowledgeBackedAnswerer:
     return KnowledgeBackedAnswerer(
-        KnowledgeStore.from_directory(ROOT / "data/knowledge/momo"), generator
+        KnowledgeStore.from_directory(ROOT / "data/knowledge/policies"), generator
     )  # type: ignore[arg-type]
 
 

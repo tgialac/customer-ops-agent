@@ -23,14 +23,14 @@
     }
   },
   "overrides": {
-    "momo-golden-v1-007": {"refund_status": "processing"},
-    "momo-golden-v1-008": {"refund_status": "completed"},
-    "momo-golden-v1-009": {"refund_status": "failed"},
-    "momo-golden-v1-018": {"refund_status": "processing"},
-    "momo-golden-v1-039": {"status": "completed"},
-    "momo-golden-v1-047": {"status": "failed"},
-    "momo-golden-v1-050": {"status": "failed"},
-    "momo-golden-v1-056": {"status": "failed"},
+    "customer-ops-golden-v1-007": {"refund_status": "processing"},
+    "customer-ops-golden-v1-008": {"refund_status": "completed"},
+    "customer-ops-golden-v1-009": {"refund_status": "failed"},
+    "customer-ops-golden-v1-018": {"refund_status": "processing"},
+    "customer-ops-golden-v1-039": {"status": "completed"},
+    "customer-ops-golden-v1-047": {"status": "failed"},
+    "customer-ops-golden-v1-050": {"status": "failed"},
+    "customer-ops-golden-v1-056": {"status": "failed"},
     "bank-transfer-v1-003": {
       "status": "pending",
       "elapsed_working_days": 3

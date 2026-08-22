@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import (
+from customer_ops_agent.agent_harness import (
     LLMDecisionPayload,
     LLMAgent,
     RouterDecision,
     RuleBasedAgent,
 )
-from momo_ops_agent.contracts import (
+from customer_ops_agent.contracts import (
     CaseAction,
     CaseStatus,
     IntentName,
@@ -14,9 +14,9 @@ from momo_ops_agent.contracts import (
     SlotName,
     TransactionStatus,
 )
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, ToolName
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
-from momo_ops_agent.eval_runner import run_evaluation
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, ToolName
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.eval_runner import run_evaluation
 
 
 ROOT = Path(__file__).parents[1]
@@ -196,7 +196,7 @@ def test_source_workflow_cannot_answer_before_transaction_lookup() -> None:
 def test_injected_decision_provider_uses_the_same_evaluator() -> None:
     baseline = RuleBasedAgent()
     summary = run_evaluation(
-        ROOT / "data/golden/momo_golden_v1.jsonl",
+        ROOT / "data/golden/customer_ops_golden_v1.jsonl",
         ROOT / "data/golden/fixtures.json",
         LLMAgent(baseline.decide),
     )

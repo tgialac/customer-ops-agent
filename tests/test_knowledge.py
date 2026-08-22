@@ -1,14 +1,14 @@
 from datetime import date
 from pathlib import Path
 
-from momo_ops_agent.knowledge import KnowledgeStore, KnowledgeTopic
+from customer_ops_agent.knowledge import KnowledgeStore, KnowledgeTopic
 
 
 ROOT = Path(__file__).parents[1]
-KNOWLEDGE_DIR = ROOT / "data/knowledge/momo"
+KNOWLEDGE_DIR = ROOT / "data/knowledge/policies"
 
 
-def test_public_momo_corpus_has_source_and_excludes_future_terms() -> None:
+def test_public_policy_corpus_has_source_and_excludes_future_terms() -> None:
     store = KnowledgeStore.from_directory(KNOWLEDGE_DIR)
 
     hits = store.search(

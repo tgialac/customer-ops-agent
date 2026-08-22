@@ -1,6 +1,6 @@
-from momo_ops_agent.contracts import TransactionStatus
-from momo_ops_agent.evaluation import ToolName
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.contracts import TransactionStatus
+from customer_ops_agent.evaluation import ToolName
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
 
 
 def test_support_ticket_mutates_state_once_and_is_idempotent() -> None:

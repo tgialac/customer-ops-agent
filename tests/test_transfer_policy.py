@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from momo_ops_agent.contracts import TransactionStatus
-from momo_ops_agent.knowledge import KnowledgeStore
-from momo_ops_agent.policies import (
+from customer_ops_agent.contracts import TransactionStatus
+from customer_ops_agent.knowledge import KnowledgeStore
+from customer_ops_agent.policies import (
     BANK_TRANSFER_POLICY_SOURCE,
     BankTransferPolicyAction,
     BankTransferPolicyInput,
@@ -25,7 +25,7 @@ def test_missing_transaction_id_is_clarification_not_a_policy_claim() -> None:
 
 
 def test_policy_rule_points_to_an_active_source_document() -> None:
-    store = KnowledgeStore.from_directory(ROOT / "data/knowledge/momo")
+    store = KnowledgeStore.from_directory(ROOT / "data/knowledge/policies")
 
     documents = [
         hit.document

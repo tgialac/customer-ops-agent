@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from momo_ops_agent.contracts import (
+from customer_ops_agent.contracts import (
     CaseAction,
     CaseState,
     CaseStatus,

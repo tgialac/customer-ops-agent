@@ -2,10 +2,10 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from momo_ops_agent.evaluation import GoldenCase
+from customer_ops_agent.evaluation import GoldenCase
 
 
-GOLDEN_SET = Path(__file__).parents[1] / "data" / "golden" / "momo_golden_v1.jsonl"
+GOLDEN_SET = Path(__file__).parents[1] / "data" / "golden" / "customer_ops_golden_v1.jsonl"
 
 
 def load_cases() -> list[GoldenCase]:

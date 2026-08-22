@@ -87,7 +87,7 @@ def _grade_case(case: GoldenCase, run: AgentRun) -> AnswerQARecord:
 
 
 _QA_KNOWLEDGE = KnowledgeStore.from_directory(
-    Path(__file__).parents[2] / "data" / "knowledge" / "momo"
+    Path(__file__).parents[2] / "data" / "knowledge" / "policies"
 )
 
 

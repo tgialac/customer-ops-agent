@@ -1170,7 +1170,7 @@ class LLMAgent(RuleBasedAgent):
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is required for the OpenAI harness")
-        selected_model = model or os.getenv("MOMO_OPS_MODEL", "gpt-5.6")
+        selected_model = model or os.getenv("CUSTOMER_OPS_MODEL", "gpt-5.6")
         client = OpenAI(api_key=api_key)
 
         def provider(history: list[GoldenTurn]) -> RouterDecision:

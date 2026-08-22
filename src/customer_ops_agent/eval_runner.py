@@ -170,7 +170,7 @@ def main() -> None:
     parser.add_argument(
         "--golden-set",
         type=Path,
-        default=Path("data/golden/momo_golden_v1.jsonl"),
+        default=Path("data/golden/customer_ops_golden_v1.jsonl"),
     )
     parser.add_argument(
         "--fixtures",

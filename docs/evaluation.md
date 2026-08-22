@@ -17,7 +17,7 @@ router while keeping the evaluator and backend unchanged.
 Run it with:
 
 ```bash
-python -m momo_ops_agent.eval_runner
+python -m customer_ops_agent.eval_runner
 ```
 
 The current rule-based baseline passes the 60 synthetic cases. This is a
@@ -39,7 +39,7 @@ default rule harness is the deterministic CI gate.
 The source-backed workflows have separate suites:
 
 ```bash
-python -m momo_ops_agent.eval_runner \
+python -m customer_ops_agent.eval_runner \
   --golden-set data/golden/bank_transfer_not_received_v1.jsonl \
   --fixtures data/golden/fixtures.json
 ```
@@ -53,7 +53,7 @@ workflow because its official policy has different eligibility, limits, and a
 24-hour window:
 
 ```bash
-uv run python -m momo_ops_agent.eval_runner \
+uv run python -m customer_ops_agent.eval_runner \
   --golden-set data/golden/cashback_not_received_v1.jsonl \
   --fixtures data/golden/fixtures.json
 ```
@@ -73,7 +73,7 @@ Google Play refund instructions are also a separate source-backed workflow;
 it answers with the official request path without requiring a transaction ID:
 
 ```bash
-uv run python -m momo_ops_agent.eval_runner \
+uv run python -m customer_ops_agent.eval_runner \
   --golden-set data/golden/google_play_refund_v1.jsonl \
   --fixtures data/golden/fixtures.json
 ```
@@ -83,7 +83,7 @@ Google Play, cashback, bank-transfer reversal, generic merchant refund, and
 App Store wording do not inherit one another's policy source:
 
 ```bash
-uv run python -m momo_ops_agent.eval_runner \
+uv run python -m customer_ops_agent.eval_runner \
   --golden-set data/golden/workflow_boundaries_v1.jsonl \
   --fixtures data/golden/fixtures.json
 ```
@@ -106,7 +106,7 @@ Run the LLM adapter with:
 ```bash
 python -m pip install -e '.[test,openai]'
 export OPENAI_API_KEY='...'
-python -m momo_ops_agent.eval_runner --harness openai --model gpt-5.6
+python -m customer_ops_agent.eval_runner --harness openai --model gpt-5.6
 ```
 
 The adapter uses the OpenAI Responses API's Pydantic Structured Outputs to

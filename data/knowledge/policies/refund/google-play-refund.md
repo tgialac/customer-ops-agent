@@ -1,5 +1,5 @@
 ---
-document_id: momo-faq-google-play-refund-2026-08-22
+document_id: official-faq-google-play-refund-2026-08-22
 title: Hoàn tiền giao dịch mua ứng dụng
 source_url: https://www.momo.vn/hoi-dap/toi-muon-hoan-tien-da-giao-dich-cho-ung-dung-da-mua
 source_kind: official_faq

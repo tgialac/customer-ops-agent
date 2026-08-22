@@ -113,7 +113,7 @@ class KnowledgeBackedAnswerer:
 
     @classmethod
     def from_repository(cls, generator: AnswerGenerator) -> "KnowledgeBackedAnswerer":
-        knowledge_dir = Path(__file__).parents[2] / "data" / "knowledge" / "momo"
+        knowledge_dir = Path(__file__).parents[2] / "data" / "knowledge" / "policies"
         return cls(KnowledgeStore.from_directory(knowledge_dir), generator)
 
     def generate(

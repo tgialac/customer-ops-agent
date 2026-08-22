@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import RuleBasedAgent
-from momo_ops_agent.contracts import CaseAction, CaseStatus, IntentName, TransactionStatus
-from momo_ops_agent.eval_runner import run_evaluation
-from momo_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
-from momo_ops_agent.mock_backend import MockBackend, TransactionRecord
+from customer_ops_agent.agent_harness import RuleBasedAgent
+from customer_ops_agent.contracts import CaseAction, CaseStatus, IntentName, TransactionStatus
+from customer_ops_agent.eval_runner import run_evaluation
+from customer_ops_agent.evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
+from customer_ops_agent.mock_backend import MockBackend, TransactionRecord
 
 
 ROOT = Path(__file__).parents[1]
@@ -49,7 +49,7 @@ def test_bank_transfer_lookup_is_materialized_from_verified_context() -> None:
     assert run.final_decision.action is CaseAction.ANSWER
     assert run.final_decision.outcome is OutcomeName.BANK_TRANSFER_PENDING_RECONCILIATION
     assert run.final_decision.policy_source == (
-        "momo-faq-bank-transfer-reversal-2026-08-22"
+        "official-faq-bank-transfer-reversal-2026-08-22"
     )
     assert run.trace[0].tool_result is not None
     assert run.trace[0].tool_result.tool_name is ToolName.GET_TRANSACTION_STATUS
