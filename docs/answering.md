@@ -31,3 +31,25 @@ for answer generation, self-correcting output guardrails, and separate
 component/answer-generation/end-to-end evaluation. The implementation keeps
 the current local lexical retriever; a vector store can replace it behind the
 same `KnowledgeBackedAnswerer` boundary later.
+
+## Human-review QA loop
+
+Run the source-backed suite through the deterministic harness for a fast local
+check:
+
+```bash
+uv run python scripts/run_answer_qa.py --harness rule
+```
+
+Run it through the configured LLM to capture realistic wording for review:
+
+```bash
+uv run --env-file .env --extra openai python scripts/run_answer_qa.py \
+  --harness openai --model gpt-5.6-luna
+```
+
+The command writes an ignored JSON artifact under `artifacts/qa/`. Each record
+contains the customer-facing response, source URL/document, policy message
+key, retry count, automated checks, and `review_status: "pending"`. A reviewer
+can set that status to `approved` or `rejected` and add `reviewer_notes`; pass
+the artifact back with `--previous` on the next run to preserve those fields.
