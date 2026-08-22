@@ -21,6 +21,11 @@ deadline, refund destination, or escalation path. Structured output enforces
 the source/message identity, while the output guardrail checks mandatory facts
 and rejects unsupported guarantees.
 
+Runtime decisions keep an internal response handle for evaluation (for
+example, `handoff` or `ask_for_transaction_id`) and expose a separate
+customer-facing message. This prevents test handles from leaking into the
+conversation while keeping routing outcomes deterministic.
+
 An invalid draft is regenerated once with the previous draft included as a
 failure signal. A second failure, unavailable source, or model/API error
 fails closed to handoff. The deterministic policy response remains the safe
@@ -49,7 +54,8 @@ uv run --env-file .env --extra openai python scripts/run_answer_qa.py \
 ```
 
 The command writes an ignored JSON artifact under `artifacts/qa/`. Each record
-contains the customer-facing response, source URL/document, policy message
-key, retry count, automated checks, and `review_status: "pending"`. A reviewer
+contains the customer-facing response, its internal response handle, source
+URL/document, policy message key, retry count, automated checks, and
+`review_status: "pending"`. A reviewer
 can set that status to `approved` or `rejected` and add `reviewer_notes`; pass
 the artifact back with `--previous` on the next run to preserve those fields.

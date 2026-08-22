@@ -24,6 +24,9 @@ def test_answer_qa_produces_pending_human_review_records(tmp_path: Path) -> None
     assert report.automated_passed == 11
     assert all(record.review_status == "pending" for record in report.records)
     assert all(record.response for record in report.records)
+    assert report.records[0].response_handle == "ask_for_transaction_id"
+    assert report.records[0].response != report.records[0].response_handle
+    assert report.records[1].response_handle == "answer"
     assert output.exists()
 
 

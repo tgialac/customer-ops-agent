@@ -96,10 +96,40 @@ def test_answer_layer_rewrites_tone_but_keeps_policy_facts() -> None:
     assert run.final_decision.action is CaseAction.ANSWER
     assert run.final_decision.outcome is OutcomeName.BANK_TRANSFER_PENDING_RECONCILIATION
     assert "1-2 ngày làm việc" in run.final_decision.response
+    assert run.final_decision.customer_response == run.final_decision.response
     assert run.trace[0].answer_generation_attempts == 1
     assert run.trace[0].output_guardrail is not None
     assert run.trace[0].output_guardrail.passed is True
     assert run.case_state.status is CaseStatus.IN_PROGRESS
+
+
+def test_clarification_and_handoff_have_customer_facing_messages() -> None:
+    missing_id = RuleBasedAgent().run(
+        "customer-copy-001",
+        [
+            GoldenTurn(
+                role=GoldenTurnRole.CUSTOMER,
+                text="Chuyển khoản ngân hàng, người nhận chưa thấy tiền.",
+            )
+        ],
+        MockBackend(),
+    )
+    assert missing_id.final_decision.response == "ask_for_transaction_id"
+    assert missing_id.final_decision.customer_response
+    assert missing_id.case_state.messages[-1].content == (
+        missing_id.final_decision.customer_response
+    )
+
+    handoff = RuleBasedAgent().run(
+        "customer-copy-002",
+        _customer_turn("txn_demo_092"),
+        MockBackend(),
+    )
+    assert handoff.final_decision.response == "handoff"
+    assert handoff.final_decision.customer_response
+    assert handoff.case_state.messages[-1].content == (
+        handoff.final_decision.customer_response
+    )
 
 
 class RetryGenerator:

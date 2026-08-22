@@ -40,6 +40,14 @@ from .answering import (
 )
 
 
+CUSTOMER_CLARIFICATION_RESPONSE = (
+    "Bạn vui lòng gửi mã giao dịch để mình kiểm tra tình trạng chuyển khoản cho bạn."
+)
+CUSTOMER_HANDOFF_RESPONSE = (
+    "Mình sẽ chuyển yêu cầu này đến bộ phận hỗ trợ để kiểm tra thêm."
+)
+
+
 class RouterDecision(StrictModel):
     intent: IntentPrediction
     slots: dict[SlotName, str] = Field(default_factory=dict)
@@ -57,6 +65,7 @@ class AgentDecision(RouterDecision):
 
     outcome: OutcomeName
     response: str
+    customer_response: str | None = None
 
 
 class LLMDecisionPayload(StrictModel):
@@ -313,15 +322,19 @@ class RuleBasedAgent:
         if router_decision.policy_violation is not None:
             outcome = OutcomeName.POLICY_GUARDRAIL_HANDOFF
             response = "handoff"
+            customer_response = CUSTOMER_HANDOFF_RESPONSE
         elif router_decision.action is CaseAction.ASK_CLARIFICATION:
             outcome = OutcomeName.ASK_FOR_TRANSACTION_ID
             response = "ask_for_transaction_id"
+            customer_response = CUSTOMER_CLARIFICATION_RESPONSE
         elif router_decision.action is CaseAction.HANDOFF:
             outcome = OutcomeName(self._handoff_outcome(history, intent))
             response = "handoff"
+            customer_response = CUSTOMER_HANDOFF_RESPONSE
         elif router_decision.action is CaseAction.ANSWER:
             outcome = OutcomeName(self._answer_outcome(history, intent))
             response = "answer_from_tool_result"
+            customer_response = None
         elif router_decision.action is CaseAction.EXECUTE_TOOL:
             outcome = OutcomeName(
                 "create_refund_investigation_ticket"
@@ -329,6 +342,7 @@ class RuleBasedAgent:
                 else "create_transaction_failure_ticket"
             )
             response = "ticket_requested"
+            customer_response = None
         elif router_decision.action is CaseAction.RETRIEVE_CONTEXT:
             if router_decision.tool is None:
                 outcome = OutcomeName.POLICY_GUARDRAIL_HANDOFF
@@ -337,14 +351,17 @@ class RuleBasedAgent:
                     self._retrieve_outcome(history[-1].text, router_decision.tool)
                 )
             response = "context_requested"
+            customer_response = None
         else:
             outcome = OutcomeName.CLOSE_CASE
             response = "close_case"
+            customer_response = None
 
         return AgentDecision(
             **router_decision.model_dump(exclude={"policy_violation"}),
             outcome=outcome,
             response=response,
+            customer_response=customer_response,
         )
 
     def _materialize_bank_transfer_decision(
@@ -365,6 +382,7 @@ class RuleBasedAgent:
                 **base,
                 outcome=OutcomeName.BANK_TRANSFER_TOOL_FAILURE_HANDOFF,
                 response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
             )
 
         data = tool_result.data
@@ -393,6 +411,7 @@ class RuleBasedAgent:
                 **base,
                 outcome=OutcomeName.BANK_TRANSFER_HANDOFF,
                 response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
             )
 
         outcome_by_message = {
@@ -411,12 +430,14 @@ class RuleBasedAgent:
                 **base,
                 outcome=OutcomeName.BANK_TRANSFER_HANDOFF,
                 response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
             )
         base["action"] = CaseAction.ANSWER
         return AgentDecision(
             **base,
             outcome=outcome,
             response=render_bank_transfer_response(policy),
+            customer_response=render_bank_transfer_response(policy),
         )
 
     def _retrieve_outcome(self, text: str, tool: ToolName) -> str:
@@ -618,7 +639,10 @@ class RuleBasedAgent:
             else:
                 state = state.transition_to(CaseStatus.IN_PROGRESS)
         return state.add_message(
-            ConversationMessage(role=MessageRole.AGENT, content=decision.response)
+            ConversationMessage(
+                role=MessageRole.AGENT,
+                content=decision.customer_response or decision.response,
+            )
         )
 
     def _call_tool(self, decision: RouterDecision, backend: MockBackend) -> ToolResult | None:
@@ -637,6 +661,7 @@ class RuleBasedAgent:
                 "policy_violation",
                 "outcome",
                 "response",
+                "customer_response",
             }
         )
         return AgentDecision(
@@ -645,9 +670,10 @@ class RuleBasedAgent:
             tool=None,
             tool_args={},
             policy_violation=f"output_guardrail:{reason}",
-            outcome=OutcomeName.POLICY_GUARDRAIL_HANDOFF,
-            response="handoff",
-        )
+                outcome=OutcomeName.POLICY_GUARDRAIL_HANDOFF,
+                response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
+            )
 
     def _generate_answer(
         self,
@@ -668,7 +694,9 @@ class RuleBasedAgent:
             )
         except AnswerGenerationError:
             return self._output_guardrail_handoff(decision, "answer_generation_failed"), 1
-        return decision.model_copy(update={"response": draft.response}), 1
+        return decision.model_copy(
+            update={"response": draft.response, "customer_response": draft.response}
+        ), 1
 
     def _add_transaction_context(
         self, state: CaseState, tool_result: ToolResult, wrong_details_reported: bool

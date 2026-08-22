@@ -22,6 +22,7 @@ class AnswerQARecord(StrictModel):
     expected_status: str
     actual_status: str
     response: str
+    response_handle: str
     policy_message_key: str | None = None
     source_document_id: str | None = None
     source_url: str | None = None
@@ -72,7 +73,10 @@ def _grade_case(case: GoldenCase, run: AgentRun) -> AnswerQARecord:
         actual_outcome=actual.outcome.value,
         expected_status=case.expected_status.value,
         actual_status=agent_run.case_state.status.value,
-        response=actual.response,
+        response=actual.customer_response or actual.response,
+        response_handle=(
+            actual.action.value if actual.action.value == "answer" else actual.response
+        ),
         policy_message_key=actual.policy_message_key,
         source_document_id=actual.policy_source,
         source_url=source_url,
