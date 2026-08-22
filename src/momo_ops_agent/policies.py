@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+import re
 
 from pydantic import Field
 
@@ -77,6 +78,57 @@ def is_approved_bank_transfer_response(response: str) -> bool:
         "Giao dịch không thành công. Tiền sẽ được hoàn về tài khoản ngân hàng đã liên kết trong khoảng 1–2 ngày làm việc.",
         "Giao dịch không thành công. Tiền sẽ được hoàn về nguồn tiền ban đầu trong khoảng 1–2 ngày làm việc.",
     }
+
+
+def is_grounded_bank_transfer_response(
+    response: str,
+    *,
+    message_key: str,
+    return_destination: str | None = None,
+) -> bool:
+    """Check mandatory policy facts without requiring an exact sentence match."""
+
+    lowered = response.casefold()
+    if len(response) > 2_000 or any(
+        phrase in lowered
+        for phrase in ("chắc chắn", "ngay lập tức", "trong vài phút", "đảm bảo")
+    ):
+        return False
+
+    requirements = {
+        "pending_1_to_2_working_days": (
+            r"1\s*[–-]\s*2",
+            "ngày làm việc",
+            ("đối soát", "hỗ trợ"),
+        ),
+        "successful_transfer_1_to_3_working_days": (
+            r"1\s*[–-]\s*3",
+            "ngày làm việc",
+            ("ngân hàng", "hỗ trợ"),
+        ),
+        "failed_transfer_return_1_to_2_working_days": (
+            r"1\s*[–-]\s*2",
+            "ngày làm việc",
+            ("hoàn",),
+        ),
+    }
+    required = requirements.get(message_key)
+    if required is None:
+        return False
+    if not re.search(required[0], lowered) or required[1] not in lowered:
+        return False
+    if not any(term in lowered for term in required[2]):
+        return False
+    if message_key == "failed_transfer_return_1_to_2_working_days":
+        destination_labels = {
+            "momo_wallet": "ví momo",
+            "linked_bank": "tài khoản ngân hàng đã liên kết",
+            "original_funding_source": "nguồn tiền ban đầu",
+        }
+        expected = destination_labels.get(return_destination or "")
+        if expected is not None and expected not in lowered:
+            return False
+    return True
 
 
 def _return_destination_label(destination: str | None) -> str:

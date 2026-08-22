@@ -37,6 +37,11 @@ These cases grade the final action/status/outcome and the read-only lookup
 recorded in the trace. This keeps policy acceptance separate from the broader
 synthetic intent-routing baseline.
 
+When the OpenAI harness is used, the same workflow also exercises the
+knowledge-backed answer writer, structured draft validation, and one retry
+before handoff. `AgentTrace.answer_generation_attempts` makes that behavior
+observable.
+
 Guardrail component and runtime tests cover both rejection paths: input
 instruction hijacking must not call a backend tool, and an unapproved
 source-backed answer must become a handoff. See [the guardrail design](guardrails.md).

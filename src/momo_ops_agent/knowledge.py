@@ -104,6 +104,14 @@ class KnowledgeStore:
 
         return sorted(hits, key=lambda hit: (-hit.score, hit.document.document_id))[:limit]
 
+    def get(
+        self, document_id: str, *, as_of: date | None = None
+    ) -> KnowledgeDocument | None:
+        for document in self._documents:
+            if document.document_id == document_id and document.is_available(as_of=as_of):
+                return document
+        return None
+
 
 def _parse_markdown_document(path: Path) -> KnowledgeDocument:
     text = path.read_text(encoding="utf-8")

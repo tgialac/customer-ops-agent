@@ -28,6 +28,21 @@ def test_output_guardrail_rejects_unapproved_source_backed_answer() -> None:
     assert result.reason == "answer_not_bound_to_approved_policy"
 
 
+def test_output_guardrail_binds_answer_to_the_matching_policy_key() -> None:
+    result = check_output(
+        intent=IntentName.BANK_TRANSFER_NOT_RECEIVED,
+        action=CaseAction.ANSWER,
+        response=(
+            "Giao dịch đang được đối soát. Vui lòng chờ 1–2 ngày làm việc; "
+            "nếu sau thời gian này vẫn chưa có kết quả, bộ phận hỗ trợ sẽ kiểm tra thêm."
+        ),
+        policy_source="momo-faq-bank-transfer-reversal-2026-08-22",
+        policy_message_key="successful_transfer_1_to_3_working_days",
+    )
+
+    assert result.passed is False
+
+
 def test_input_guardrail_handoffs_without_calling_backend() -> None:
     run = RuleBasedAgent().run(
         "guardrail-input-001",

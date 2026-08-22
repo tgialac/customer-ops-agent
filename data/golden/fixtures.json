@@ -63,6 +63,11 @@
       "status": "reversed",
       "funding_source": "wallet",
       "return_elapsed_working_days": 2
+    },
+    "bank-transfer-v1-011": {
+      "status": "failed",
+      "funding_source": "linked_bank",
+      "return_elapsed_working_days": 1
     }
   }
 }

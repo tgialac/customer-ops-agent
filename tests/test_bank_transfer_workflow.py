@@ -16,8 +16,8 @@ def test_source_backed_bank_transfer_suite_passes() -> None:
         ROOT / "data/golden/fixtures.json",
     )
 
-    assert summary.total == 10
-    assert summary.passed == 10
+    assert summary.total == 11
+    assert summary.passed == 11
     assert summary.pass_rate == 1.0
 
 

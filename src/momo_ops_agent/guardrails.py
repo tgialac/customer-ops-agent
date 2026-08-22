@@ -6,7 +6,10 @@ import re
 from enum import Enum
 
 from .contracts import CaseAction, IntentName, StrictModel
-from .policies import BANK_TRANSFER_POLICY_SOURCE, is_approved_bank_transfer_response
+from .policies import (
+    BANK_TRANSFER_POLICY_SOURCE,
+    is_grounded_bank_transfer_response,
+)
 
 
 class GuardrailStage(str, Enum):
@@ -69,6 +72,8 @@ def check_output(
     action: CaseAction,
     response: str,
     policy_source: str | None,
+    policy_message_key: str | None = None,
+    return_destination: str | None = None,
 ) -> GuardrailResult:
     """Allow only policy-bound output for the source-backed workflow."""
 
@@ -84,7 +89,12 @@ def check_output(
     elif action is CaseAction.ANSWER:
         passed = (
             policy_source == BANK_TRANSFER_POLICY_SOURCE
-            and is_approved_bank_transfer_response(response)
+            and policy_message_key is not None
+            and is_grounded_bank_transfer_response(
+                response,
+                message_key=policy_message_key,
+                return_destination=return_destination,
+            )
         )
         reason = None if passed else "answer_not_bound_to_approved_policy"
     else:

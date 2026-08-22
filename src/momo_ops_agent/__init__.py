@@ -42,6 +42,14 @@ from .policies import (
     render_bank_transfer_response,
 )
 from .guardrails import GuardrailResult, GuardrailStage, check_input, check_output
+from .answering import (
+    AnswerDraft,
+    AnswerGenerationError,
+    AnswerRequest,
+    DeterministicAnswerGenerator,
+    KnowledgeBackedAnswerer,
+    OpenAIAnswerGenerator,
+)
 
 __all__ = [
     "ACTIONS",
@@ -90,4 +98,10 @@ __all__ = [
     "GuardrailStage",
     "check_input",
     "check_output",
+    "AnswerDraft",
+    "AnswerGenerationError",
+    "AnswerRequest",
+    "DeterministicAnswerGenerator",
+    "KnowledgeBackedAnswerer",
+    "OpenAIAnswerGenerator",
 ]

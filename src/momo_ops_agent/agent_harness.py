@@ -33,6 +33,11 @@ from .policies import (
     render_bank_transfer_response,
 )
 from .guardrails import GuardrailResult, check_input, check_output
+from .answering import (
+    AnswerGenerationError,
+    KnowledgeBackedAnswerer,
+    OpenAIAnswerGenerator,
+)
 
 
 class RouterDecision(StrictModel):
@@ -43,6 +48,8 @@ class RouterDecision(StrictModel):
     tool_args: dict[str, str] = Field(default_factory=dict)
     policy_violation: str | None = None
     policy_source: str | None = None
+    policy_message_key: str | None = None
+    policy_return_destination: str | None = None
 
 
 class AgentDecision(RouterDecision):
@@ -96,6 +103,7 @@ class AgentTrace(StrictModel):
     tool_result: ToolResult | None = None
     input_guardrail: GuardrailResult | None = None
     output_guardrail: GuardrailResult | None = None
+    answer_generation_attempts: int = Field(default=0, ge=0)
 
 
 class AgentRun(StrictModel):
@@ -127,6 +135,9 @@ class RuleBasedAgent:
     _TRANSACTION_ID = re.compile(r"\btxn[-_]demo[-_]\d{3}\b", re.IGNORECASE)
     _REFUND_ID = re.compile(r"\brefund[-_]demo[-_]\d{3}\b", re.IGNORECASE)
 
+    def __init__(self, answerer: KnowledgeBackedAnswerer | None = None) -> None:
+        self._answerer = answerer
+
     def run(self, case_id: str, turns: Iterable[GoldenTurn], backend: MockBackend) -> AgentRun:
         state = CaseState(customer_ref=f"eval_{case_id}")
         trace: list[AgentTrace] = []
@@ -155,16 +166,48 @@ class RuleBasedAgent:
                 )
                 tool_result = None
                 decision = self.materialize_decision(router_decision, history)
+            answer_generation_attempts = 0
+            if (
+                self._answerer is not None
+                and decision.intent.intent is IntentName.BANK_TRANSFER_NOT_RECEIVED
+                and decision.action is CaseAction.ANSWER
+                and decision.policy_message_key is not None
+                and decision.policy_source is not None
+            ):
+                decision, answer_generation_attempts = self._generate_answer(
+                    decision, turn.text
+                )
             output_guardrail = check_output(
                 intent=decision.intent.intent,
                 action=decision.action,
                 response=decision.response,
                 policy_source=decision.policy_source,
+                policy_message_key=decision.policy_message_key,
+                return_destination=decision.policy_return_destination,
             )
             if not output_guardrail.passed:
-                decision = self._output_guardrail_handoff(
-                    decision, output_guardrail.reason or "rejected"
-                )
+                if (
+                    self._answerer is not None
+                    and decision.intent.intent is IntentName.BANK_TRANSFER_NOT_RECEIVED
+                    and decision.policy_message_key is not None
+                    and decision.policy_source is not None
+                ):
+                    decision, attempts = self._generate_answer(
+                        decision, turn.text, previous_response=decision.response
+                    )
+                    answer_generation_attempts += attempts
+                    output_guardrail = check_output(
+                        intent=decision.intent.intent,
+                        action=decision.action,
+                        response=decision.response,
+                        policy_source=decision.policy_source,
+                        policy_message_key=decision.policy_message_key,
+                        return_destination=decision.policy_return_destination,
+                    )
+                if not output_guardrail.passed:
+                    decision = self._output_guardrail_handoff(
+                        decision, output_guardrail.reason or "rejected"
+                    )
             state = self._apply_decision(
                 state,
                 decision,
@@ -181,6 +224,7 @@ class RuleBasedAgent:
                     tool_result=tool_result,
                     input_guardrail=input_guardrail,
                     output_guardrail=output_guardrail,
+                    answer_generation_attempts=answer_generation_attempts,
                 )
             )
 
@@ -336,7 +380,13 @@ class RuleBasedAgent:
                 wrong_details_reported=self._wrong_bank_details_reported(history),
             )
         )
-        base.update(tool=None, tool_args={}, policy_source=policy.source_document_id)
+        base.update(
+            tool=None,
+            tool_args={},
+            policy_source=policy.source_document_id,
+            policy_message_key=policy.message_key,
+            policy_return_destination=policy.return_destination,
+        )
         if policy.handoff_required:
             base["action"] = CaseAction.HANDOFF
             return AgentDecision(
@@ -580,7 +630,14 @@ class RuleBasedAgent:
         self, decision: AgentDecision, reason: str
     ) -> AgentDecision:
         values = decision.model_dump(
-            exclude={"action", "tool", "tool_args", "policy_violation", "outcome", "response"}
+            exclude={
+                "action",
+                "tool",
+                "tool_args",
+                "policy_violation",
+                "outcome",
+                "response",
+            }
         )
         return AgentDecision(
             **values,
@@ -591,6 +648,27 @@ class RuleBasedAgent:
             outcome=OutcomeName.POLICY_GUARDRAIL_HANDOFF,
             response="handoff",
         )
+
+    def _generate_answer(
+        self,
+        decision: AgentDecision,
+        customer_message: str,
+        *,
+        previous_response: str | None = None,
+    ) -> tuple[AgentDecision, int]:
+        if self._answerer is None or decision.policy_message_key is None:
+            return decision, 0
+        try:
+            draft = self._answerer.generate(
+                customer_message=customer_message,
+                message_key=decision.policy_message_key,
+                source_document_id=decision.policy_source or "",
+                fallback_response=decision.response,
+                previous_response=previous_response,
+            )
+        except AnswerGenerationError:
+            return self._output_guardrail_handoff(decision, "answer_generation_failed"), 1
+        return decision.model_copy(update={"response": draft.response}), 1
 
     def _add_transaction_context(
         self, state: CaseState, tool_result: ToolResult, wrong_details_reported: bool
@@ -657,7 +735,12 @@ class LLMAgent(RuleBasedAgent):
 
     harness_name = "llm_decision_v1"
 
-    def __init__(self, provider: DecisionProvider) -> None:
+    def __init__(
+        self,
+        provider: DecisionProvider,
+        answerer: KnowledgeBackedAnswerer | None = None,
+    ) -> None:
+        super().__init__(answerer=answerer)
         self._provider = provider
 
     def decide(self, history: list[GoldenTurn]) -> RouterDecision:
@@ -856,7 +939,10 @@ class LLMAgent(RuleBasedAgent):
                 raise ValueError("OpenAI returned no structured LLMDecisionPayload")
             return parsed.to_router_decision()
 
-        return cls(provider)
+        answerer = KnowledgeBackedAnswerer.from_repository(
+            OpenAIAnswerGenerator(client, selected_model)
+        )
+        return cls(provider, answerer=answerer)
 
 
 _LLM_SYSTEM_INSTRUCTIONS = """You are the decision router for a Vietnamese fintech customer-operations case.
