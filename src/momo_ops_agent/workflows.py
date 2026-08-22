@@ -122,7 +122,7 @@ GOOGLE_PLAY_REFUND_V1 = WorkflowSpec(
         "A customer wants to request a refund for an app purchased through Google Play."
     ),
     entry_condition=(
-        "The customer explicitly mentions Google Play or an app purchase and asks about a refund."
+        "The customer explicitly mentions Google Play and asks about an app refund."
     ),
     included_scenarios=(
         "requesting a Google Play app refund",

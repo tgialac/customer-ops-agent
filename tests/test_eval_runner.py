@@ -16,3 +16,14 @@ def test_rule_based_baseline_runs_every_golden_case() -> None:
     assert summary.total == 60
     assert summary.passed == 60
     assert summary.pass_rate == 1.0
+
+
+def test_cross_workflow_boundary_suite_passes() -> None:
+    summary = run_evaluation(
+        ROOT / "data/golden/workflow_boundaries_v1.jsonl",
+        ROOT / "data/golden/fixtures.json",
+    )
+
+    assert summary.total == 8
+    assert summary.passed == 8
+    assert summary.pass_rate == 1.0

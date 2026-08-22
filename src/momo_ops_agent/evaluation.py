@@ -89,6 +89,8 @@ class GoldenCase(StrictModel):
     expected_lookup_tool: ToolName | None = None
     expected_status: CaseStatus
     expected_outcome: OutcomeName
+    expected_policy_source: str | None = None
+    expected_policy_message_key: str | None = None
     tags: tuple[str, ...] = Field(min_length=1)
 
     @model_validator(mode="after")

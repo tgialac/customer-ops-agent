@@ -91,6 +91,12 @@
     },
     "cashback-v1-008": {
       "cashback_elapsed_hours": 6
+    },
+    "boundary-v1-003": {
+      "cashback_elapsed_hours": 12
+    },
+    "boundary-v1-004": {
+      "cashback_elapsed_hours": 12
     }
   }
 }

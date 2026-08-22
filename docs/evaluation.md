@@ -67,6 +67,16 @@ uv run python -m momo_ops_agent.eval_runner \
   --fixtures data/golden/fixtures.json
 ```
 
+Before adding another workflow, run the boundary suite. It checks that
+Google Play, cashback, bank-transfer reversal, generic merchant refund, and
+App Store wording do not inherit one another's policy source:
+
+```bash
+uv run python -m momo_ops_agent.eval_runner \
+  --golden-set data/golden/workflow_boundaries_v1.jsonl \
+  --fixtures data/golden/fixtures.json
+```
+
 When the OpenAI harness is used, the same workflow also exercises the
 knowledge-backed answer writer, structured draft validation, and one retry
 before handoff. `AgentTrace.answer_generation_attempts` makes that behavior

@@ -30,6 +30,10 @@ class EvalRecord(StrictModel):
     actual_status: str
     expected_outcome: str
     actual_outcome: str
+    expected_policy_source: str | None
+    actual_policy_source: str | None
+    expected_policy_message_key: str | None
+    actual_policy_message_key: str | None
     checks: dict[str, bool]
     passed: bool
 
@@ -104,6 +108,14 @@ def evaluate_case(
         ),
         "status": run.case_state.status is case.expected_status,
         "outcome": actual.outcome == case.expected_outcome,
+        "policy_source": (
+            case.expected_policy_source is None
+            or actual.policy_source == case.expected_policy_source
+        ),
+        "policy_message_key": (
+            case.expected_policy_message_key is None
+            or actual.policy_message_key == case.expected_policy_message_key
+        ),
     }
     return EvalRecord(
         case_id=case.case_id,
@@ -119,6 +131,10 @@ def evaluate_case(
         actual_status=run.case_state.status.value,
         expected_outcome=case.expected_outcome,
         actual_outcome=actual.outcome,
+        expected_policy_source=case.expected_policy_source,
+        actual_policy_source=actual.policy_source,
+        expected_policy_message_key=case.expected_policy_message_key,
+        actual_policy_message_key=actual.policy_message_key,
         checks=checks,
         passed=all(checks.values()),
     )

@@ -273,7 +273,7 @@ class RuleBasedAgent:
                 action=CaseAction.HANDOFF,
             )
 
-        if self._is_google_play_request(history):
+        if self._is_google_play_request(history) and not self._is_cashback_request(history):
             return RouterDecision(
                 intent=prediction,
                 slots=slots,
@@ -348,6 +348,7 @@ class RuleBasedAgent:
             intent is IntentName.MISSING_REFUND
             and router_decision.action is CaseAction.ANSWER
             and self._is_google_play_request(history)
+            and not self._is_cashback_request(history)
         ):
             return self._materialize_google_play_decision(router_decision, history)
         if router_decision.policy_violation is not None:
@@ -598,9 +599,7 @@ class RuleBasedAgent:
 
     def _is_google_play_request(self, history: list[GoldenTurn]) -> bool:
         text = " ".join(turn.text.lower() for turn in history)
-        return "google play" in text or (
-            "ứng dụng" in text and "hoàn tiền" in text
-        )
+        return "google play" in text
 
     def _google_play_message_key(self, history: list[GoldenTurn]) -> str:
         text = " ".join(turn.text.lower() for turn in history)
@@ -1010,7 +1009,11 @@ class LLMAgent(RuleBasedAgent):
             action = CaseAction.HANDOFF
             tool = None
             tool_args = {}
-        elif intent is IntentName.MISSING_REFUND and self._is_google_play_request(history):
+        elif (
+            intent is IntentName.MISSING_REFUND
+            and self._is_google_play_request(history)
+            and not self._is_cashback_request(history)
+        ):
             action = CaseAction.ANSWER
             tool = None
             tool_args = {}

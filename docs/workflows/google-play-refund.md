@@ -1,7 +1,9 @@
 # Workflow 3: Google Play app refund
 
-This workflow covers a customer asking how to request a refund for an app
-purchased through Google Play. It is not a merchant refund or cashback flow.
+This workflow covers a customer explicitly asking how to request a refund for
+an app purchased through Google Play. It is not a merchant refund or cashback
+flow. An app refund request without an explicit Google Play mention remains
+generic until the customer identifies the platform.
 
 ## Source-backed behavior
 
