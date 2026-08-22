@@ -248,6 +248,8 @@ class RefundSnapshot(StrictModel):
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     requested_at: datetime | None = None
     expected_by: datetime | None = None
+    cashback_elapsed_hours: int | None = Field(default=None, ge=0)
+    cashback_reason: str | None = None
 
 
 class ContextSnapshot(StrictModel):

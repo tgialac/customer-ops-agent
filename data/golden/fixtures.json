@@ -2,7 +2,9 @@
   "default_by_intent": {
     "missing_refund": {
       "status": "completed",
-      "refund_status": "processing"
+      "refund_status": "processing",
+      "cashback_elapsed_hours": null,
+      "cashback_reason": null
     },
     "transaction_pending": {
       "status": "pending",
@@ -68,6 +70,27 @@
       "status": "failed",
       "funding_source": "linked_bank",
       "return_elapsed_working_days": 1
+    },
+    "cashback-v1-002": {
+      "cashback_elapsed_hours": 12
+    },
+    "cashback-v1-003": {
+      "cashback_elapsed_hours": 25
+    },
+    "cashback-v1-004": {
+      "cashback_reason": "unsupported_service"
+    },
+    "cashback-v1-005": {
+      "cashback_reason": "account_limit"
+    },
+    "cashback-v1-006": {
+      "cashback_reason": "monthly_limit"
+    },
+    "cashback-v1-007": {
+      "cashback_reason": "unsupported_service"
+    },
+    "cashback-v1-008": {
+      "cashback_elapsed_hours": 6
     }
   }
 }

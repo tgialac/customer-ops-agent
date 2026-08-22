@@ -73,6 +73,8 @@ def build_backend(case: GoldenCase, fixture_config: dict[str, Any]) -> MockBacke
         funding_source=state.get("funding_source", "unknown"),
         elapsed_working_days=state.get("elapsed_working_days"),
         return_elapsed_working_days=state.get("return_elapsed_working_days"),
+        cashback_elapsed_hours=state.get("cashback_elapsed_hours"),
+        cashback_reason=state.get("cashback_reason"),
     )
     return MockBackend([record])
 

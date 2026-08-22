@@ -53,6 +53,11 @@ class OutcomeName(str, Enum):
     BANK_TRANSFER_FAILED_RETURN = "bank_transfer_failed_return"
     BANK_TRANSFER_HANDOFF = "bank_transfer_handoff"
     BANK_TRANSFER_TOOL_FAILURE_HANDOFF = "bank_transfer_tool_failure_handoff"
+    CASHBACK_PENDING_WITHIN_24_HOURS = "cashback_pending_within_24_hours"
+    CASHBACK_NOT_ELIGIBLE = "cashback_not_eligible"
+    CASHBACK_ACCOUNT_LIMIT_REACHED = "cashback_account_limit_reached"
+    CASHBACK_MONTHLY_LIMIT_REACHED = "cashback_monthly_limit_reached"
+    CASHBACK_HANDOFF = "cashback_handoff"
 
 
 class GoldenTurn(StrictModel):

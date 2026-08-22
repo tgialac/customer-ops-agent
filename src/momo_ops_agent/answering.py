@@ -8,7 +8,7 @@ from typing import Any, Protocol
 from pydantic import Field
 
 from .contracts import StrictModel
-from .knowledge import KnowledgeStore, KnowledgeTopic
+from .knowledge import KnowledgeStore
 
 
 class AnswerGenerationError(RuntimeError):
@@ -132,7 +132,7 @@ class KnowledgeBackedAnswerer:
         hits = self._store.search(
             customer_message,
             audience="customer",
-            topic=KnowledgeTopic.BANK_TRANSFER_REVERSAL.value,
+            topic=source.topic,
             limit=3,
         )
         if not any(hit.document.document_id == source_document_id for hit in hits):

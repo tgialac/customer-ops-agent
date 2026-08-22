@@ -21,6 +21,8 @@ class TransactionRecord(StrictModel):
     funding_source: FundingSource = FundingSource.UNKNOWN
     elapsed_working_days: int | None = Field(default=None, ge=0)
     return_elapsed_working_days: int | None = Field(default=None, ge=0)
+    cashback_elapsed_hours: int | None = Field(default=None, ge=0)
+    cashback_reason: str | None = None
 
 
 class ToolResult(StrictModel):
@@ -85,6 +87,8 @@ class MockBackend:
                 "refund_status": record.refund_status.value,
                 "amount_minor": record.amount_minor,
                 "currency": record.currency,
+                "cashback_elapsed_hours": record.cashback_elapsed_hours,
+                "cashback_reason": record.cashback_reason,
             },
             state_version=self._state_version,
         )

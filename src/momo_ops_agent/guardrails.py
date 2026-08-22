@@ -8,7 +8,9 @@ from enum import Enum
 from .contracts import CaseAction, IntentName, StrictModel
 from .policies import (
     BANK_TRANSFER_POLICY_SOURCE,
+    CASHBACK_POLICY_SOURCE,
     is_grounded_bank_transfer_response,
+    is_grounded_cashback_response,
 )
 
 
@@ -78,7 +80,11 @@ def check_output(
     """Allow only policy-bound output for the source-backed workflow."""
 
     if intent is not IntentName.BANK_TRANSFER_NOT_RECEIVED:
-        return GuardrailResult(stage=GuardrailStage.OUTPUT, passed=True)
+        if not (
+            intent is IntentName.MISSING_REFUND
+            and policy_source == CASHBACK_POLICY_SOURCE
+        ):
+            return GuardrailResult(stage=GuardrailStage.OUTPUT, passed=True)
 
     if action is CaseAction.HANDOFF:
         passed = response == "handoff"
@@ -86,6 +92,12 @@ def check_output(
     elif action is CaseAction.ASK_CLARIFICATION:
         passed = response == "ask_for_transaction_id"
         reason = None if passed else "clarification_response_mismatch"
+    elif action is CaseAction.ANSWER and policy_source == CASHBACK_POLICY_SOURCE:
+        passed = (
+            policy_message_key is not None
+            and is_grounded_cashback_response(response, message_key=policy_message_key)
+        )
+        reason = None if passed else "cashback_answer_not_bound_to_policy"
     elif action is CaseAction.ANSWER:
         passed = (
             policy_source == BANK_TRANSFER_POLICY_SOURCE

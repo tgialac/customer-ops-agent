@@ -11,6 +11,7 @@ from .contracts import FundingSource, StrictModel, TransactionStatus
 
 
 BANK_TRANSFER_POLICY_SOURCE = "momo-faq-bank-transfer-reversal-2026-08-22"
+CASHBACK_POLICY_SOURCE = "momo-faq-cashback-not-received-2026-08-22"
 
 
 class BankTransferPolicyAction(str, Enum):
@@ -36,6 +37,27 @@ class BankTransferPolicyDecision(StrictModel):
     message_key: str
     handoff_required: bool = False
     return_destination: str | None = None
+
+
+class CashbackPolicyAction(str, Enum):
+    WAIT_WITHIN_24_HOURS = "wait_within_24_hours"
+    EXPLAIN_NOT_ELIGIBLE = "explain_not_eligible"
+    EXPLAIN_ACCOUNT_LIMIT = "explain_account_limit"
+    EXPLAIN_MONTHLY_LIMIT = "explain_monthly_limit"
+    HANDOFF = "handoff"
+
+
+class CashbackPolicyInput(StrictModel):
+    transaction_id: str | None = None
+    elapsed_hours: int | None = Field(default=None, ge=0)
+    reason: str | None = None
+
+
+class CashbackPolicyDecision(StrictModel):
+    action: CashbackPolicyAction
+    source_document_id: str = CASHBACK_POLICY_SOURCE
+    message_key: str
+    handoff_required: bool = False
 
 
 def render_bank_transfer_response(decision: BankTransferPolicyDecision) -> str:
@@ -129,6 +151,90 @@ def is_grounded_bank_transfer_response(
         if expected is not None and expected not in lowered:
             return False
     return True
+
+
+def render_cashback_response(decision: CashbackPolicyDecision) -> str:
+    messages = {
+        "cashback_pending_within_24_hours": (
+            "Hệ thống có thể cần tối đa 24 giờ để ghi nhận tiền hoàn. "
+            "Bạn vui lòng chờ thêm và kiểm tra lại trong mục Lịch sử giao dịch."
+        ),
+        "cashback_not_eligible": (
+            "Giao dịch này không thuộc nhóm dịch vụ được áp dụng hoàn tiền theo chính sách. "
+            "Bạn có thể kiểm tra danh sách dịch vụ áp dụng trong tính năng Hoàn tiền trên MoMo."
+        ),
+        "cashback_account_limit_reached": (
+            "Tài khoản Hoàn tiền đã đạt giới hạn 12.000.000 đồng. "
+            "Bạn cần rút tiền về Ví MoMo để có thể tiếp tục nhận hoàn tiền cho các dịch vụ được áp dụng."
+        ),
+        "cashback_monthly_limit_reached": (
+            "Bạn đã đạt giới hạn hoàn tiền 2.000.000 đồng trong tháng này. "
+            "Bạn có thể tiếp tục sử dụng dịch vụ vào tháng sau để nhận hoàn tiền."
+        ),
+    }
+    try:
+        return messages[decision.message_key]
+    except KeyError as exc:
+        raise ValueError(
+            f"no customer-facing response is approved for {decision.message_key}"
+        ) from exc
+
+
+def is_grounded_cashback_response(response: str, *, message_key: str) -> bool:
+    lowered = response.casefold()
+    if len(response) > 2_000 or any(
+        phrase in lowered
+        for phrase in ("chắc chắn", "ngay lập tức", "đảm bảo", "cam kết")
+    ):
+        return False
+    requirements = {
+        "cashback_pending_within_24_hours": ("24 giờ", ("chờ", "lịch sử")),
+        "cashback_not_eligible": ("không thuộc", ("dịch vụ", "hoàn tiền")),
+        "cashback_account_limit_reached": (
+            "12.000.000",
+            ("tài khoản hoàn tiền", "rút"),
+        ),
+        "cashback_monthly_limit_reached": (
+            "2.000.000",
+            ("tháng", "hoàn tiền"),
+        ),
+    }
+    required = requirements.get(message_key)
+    if required is None:
+        return False
+    return required[0] in lowered and all(term in lowered for term in required[1])
+
+
+def evaluate_cashback_policy(
+    request: CashbackPolicyInput,
+) -> CashbackPolicyDecision:
+    """Apply the customer cashback FAQ without inferring eligibility."""
+
+    if request.reason == "unsupported_service":
+        return CashbackPolicyDecision(
+            action=CashbackPolicyAction.EXPLAIN_NOT_ELIGIBLE,
+            message_key="cashback_not_eligible",
+        )
+    if request.reason == "account_limit":
+        return CashbackPolicyDecision(
+            action=CashbackPolicyAction.EXPLAIN_ACCOUNT_LIMIT,
+            message_key="cashback_account_limit_reached",
+        )
+    if request.reason == "monthly_limit":
+        return CashbackPolicyDecision(
+            action=CashbackPolicyAction.EXPLAIN_MONTHLY_LIMIT,
+            message_key="cashback_monthly_limit_reached",
+        )
+    if request.elapsed_hours is not None and request.elapsed_hours > 24:
+        return CashbackPolicyDecision(
+            action=CashbackPolicyAction.HANDOFF,
+            message_key="cashback_overdue_help",
+            handoff_required=True,
+        )
+    return CashbackPolicyDecision(
+        action=CashbackPolicyAction.WAIT_WITHIN_24_HOURS,
+        message_key="cashback_pending_within_24_hours",
+    )
 
 
 def _return_destination_label(destination: str | None) -> str:

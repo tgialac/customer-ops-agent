@@ -9,6 +9,7 @@ from .contracts import SlotName, StrictModel
 
 class WorkflowName(str, Enum):
     BANK_TRANSFER_NOT_RECEIVED_V1 = "bank_transfer_not_received_v1"
+    CASHBACK_NOT_RECEIVED_V1 = "cashback_not_received_v1"
 
 
 class WorkflowSpec(StrictModel):
@@ -71,8 +72,52 @@ BANK_TRANSFER_NOT_RECEIVED_V1 = WorkflowSpec(
 )
 
 
+CASHBACK_NOT_RECEIVED_V1 = WorkflowSpec(
+    workflow=WorkflowName.CASHBACK_NOT_RECEIVED_V1,
+    customer_problem=(
+        "A customer says an eligible MoMo cashback has not appeared after a payment."
+    ),
+    entry_condition=(
+        "The customer is asking about promotional cashback or the MoMo cashback account, "
+        "not a merchant refund, bank-transfer reversal, or Google Play refund."
+    ),
+    included_scenarios=(
+        "cashback still within the public 24-hour window",
+        "cashback overdue and requiring Help",
+        "service outside the cashback eligibility list",
+        "cashback account balance limit reached",
+        "monthly cashback limit reached",
+        "missing transaction ID requiring clarification",
+    ),
+    excluded_scenarios=(
+        "merchant Payment API refund",
+        "bank-transfer reversal",
+        "Google Play purchase refund",
+        "cashback policy facts not verified by the refund-status tool",
+    ),
+    required_slots=(SlotName.TRANSACTION_ID,),
+    terminal_outcomes=(
+        "wait_within_24_hours",
+        "explain_cashback_not_eligible",
+        "explain_cashback_account_limit",
+        "explain_cashback_monthly_limit",
+        "handoff_after_cashback_window",
+        "request_transaction_id",
+    ),
+    handoff_conditions=(
+        "the public 24-hour window has passed without cashback",
+        "the refund-status tool fails or returns no verified cashback facts",
+        "an answer guardrail fails",
+    ),
+    source_urls=(
+        "https://www.momo.vn/hoi-dap/tai-sao-toi-khong-duoc-hoan-tien-khi-thanh-toan-dich-vu-nay",
+    ),
+)
+
+
 WORKFLOW_CATALOG = {
     WorkflowName.BANK_TRANSFER_NOT_RECEIVED_V1: BANK_TRANSFER_NOT_RECEIVED_V1,
+    WorkflowName.CASHBACK_NOT_RECEIVED_V1: CASHBACK_NOT_RECEIVED_V1,
 }
 
 

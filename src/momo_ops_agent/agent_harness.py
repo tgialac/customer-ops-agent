@@ -19,6 +19,8 @@ from .contracts import (
     IntentName,
     IntentPrediction,
     MessageRole,
+    RefundSnapshot,
+    RefundStatus,
     SlotName,
     TransactionSnapshot,
     TransactionStatus,
@@ -29,7 +31,11 @@ from .mock_backend import MockBackend, ToolResult
 from .contracts import StrictModel
 from .policies import (
     BankTransferPolicyInput,
+    CASHBACK_POLICY_SOURCE,
+    CashbackPolicyInput,
     evaluate_bank_transfer_policy,
+    evaluate_cashback_policy,
+    render_cashback_response,
     render_bank_transfer_response,
 )
 from .guardrails import GuardrailResult, check_input, check_output
@@ -42,6 +48,9 @@ from .answering import (
 
 CUSTOMER_CLARIFICATION_RESPONSE = (
     "Bạn vui lòng gửi mã giao dịch để mình kiểm tra tình trạng chuyển khoản cho bạn."
+)
+CUSTOMER_CASHBACK_CLARIFICATION_RESPONSE = (
+    "Bạn vui lòng gửi mã giao dịch của khoản cashback để mình kiểm tra giúp bạn."
 )
 CUSTOMER_HANDOFF_RESPONSE = (
     "Mình sẽ chuyển yêu cầu này đến bộ phận hỗ trợ để kiểm tra thêm."
@@ -178,7 +187,6 @@ class RuleBasedAgent:
             answer_generation_attempts = 0
             if (
                 self._answerer is not None
-                and decision.intent.intent is IntentName.BANK_TRANSFER_NOT_RECEIVED
                 and decision.action is CaseAction.ANSWER
                 and decision.policy_message_key is not None
                 and decision.policy_source is not None
@@ -197,7 +205,7 @@ class RuleBasedAgent:
             if not output_guardrail.passed:
                 if (
                     self._answerer is not None
-                    and decision.intent.intent is IntentName.BANK_TRANSFER_NOT_RECEIVED
+                    and decision.action is CaseAction.ANSWER
                     and decision.policy_message_key is not None
                     and decision.policy_source is not None
                 ):
@@ -319,6 +327,14 @@ class RuleBasedAgent:
             return self._materialize_bank_transfer_decision(
                 router_decision, history, tool_result
             )
+        if (
+            intent is IntentName.MISSING_REFUND
+            and router_decision.action is CaseAction.RETRIEVE_CONTEXT
+            and self._is_cashback_request(history)
+        ):
+            return self._materialize_cashback_decision(
+                router_decision, history, tool_result
+            )
         if router_decision.policy_violation is not None:
             outcome = OutcomeName.POLICY_GUARDRAIL_HANDOFF
             response = "handoff"
@@ -326,7 +342,12 @@ class RuleBasedAgent:
         elif router_decision.action is CaseAction.ASK_CLARIFICATION:
             outcome = OutcomeName.ASK_FOR_TRANSACTION_ID
             response = "ask_for_transaction_id"
-            customer_response = CUSTOMER_CLARIFICATION_RESPONSE
+            customer_response = (
+                CUSTOMER_CASHBACK_CLARIFICATION_RESPONSE
+                if intent is IntentName.MISSING_REFUND
+                and self._is_cashback_request(history)
+                else CUSTOMER_CLARIFICATION_RESPONSE
+            )
         elif router_decision.action is CaseAction.HANDOFF:
             outcome = OutcomeName(self._handoff_outcome(history, intent))
             response = "handoff"
@@ -440,6 +461,81 @@ class RuleBasedAgent:
             customer_response=render_bank_transfer_response(policy),
         )
 
+    def _materialize_cashback_decision(
+        self,
+        router_decision: RouterDecision,
+        history: list[GoldenTurn],
+        tool_result: ToolResult | None,
+    ) -> AgentDecision:
+        base = router_decision.model_dump(exclude={"policy_violation"})
+        if tool_result is None or not tool_result.success:
+            base.update(
+                action=CaseAction.HANDOFF,
+                tool=None,
+                tool_args={},
+                policy_source=CASHBACK_POLICY_SOURCE,
+                policy_message_key="cashback_overdue_help",
+            )
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.CASHBACK_HANDOFF,
+                response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
+            )
+
+        data = tool_result.data
+        policy = evaluate_cashback_policy(
+            CashbackPolicyInput(
+                transaction_id=data.get("transaction_id"),
+                elapsed_hours=data.get("cashback_elapsed_hours"),
+                reason=data.get("cashback_reason"),
+            )
+        )
+        base.update(
+            tool=None,
+            tool_args={},
+            policy_source=policy.source_document_id,
+            policy_message_key=policy.message_key,
+        )
+        if policy.handoff_required:
+            base["action"] = CaseAction.HANDOFF
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.CASHBACK_HANDOFF,
+                response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
+            )
+
+        outcome_by_message = {
+            "cashback_pending_within_24_hours": (
+                OutcomeName.CASHBACK_PENDING_WITHIN_24_HOURS
+            ),
+            "cashback_not_eligible": OutcomeName.CASHBACK_NOT_ELIGIBLE,
+            "cashback_account_limit_reached": (
+                OutcomeName.CASHBACK_ACCOUNT_LIMIT_REACHED
+            ),
+            "cashback_monthly_limit_reached": (
+                OutcomeName.CASHBACK_MONTHLY_LIMIT_REACHED
+            ),
+        }
+        outcome = outcome_by_message.get(policy.message_key)
+        if outcome is None:
+            base["action"] = CaseAction.HANDOFF
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.CASHBACK_HANDOFF,
+                response="handoff",
+                customer_response=CUSTOMER_HANDOFF_RESPONSE,
+            )
+        response = render_cashback_response(policy)
+        base["action"] = CaseAction.ANSWER
+        return AgentDecision(
+            **base,
+            outcome=outcome,
+            response=response,
+            customer_response=response,
+        )
+
     def _retrieve_outcome(self, text: str, tool: ToolName) -> str:
         if tool is ToolName.GET_REFUND_STATUS:
             return "retrieve_refund_status"
@@ -451,6 +547,19 @@ class RuleBasedAgent:
         if "không muốn thử lại" in lowered:
             return "retrieve_transaction_status_before_any_retry"
         return "retrieve_transaction_status"
+
+    def _is_cashback_request(self, history: list[GoldenTurn]) -> bool:
+        text = " ".join(turn.text.lower() for turn in history)
+        return any(
+            marker in text
+            for marker in (
+                "cashback",
+                "hoàn tiền mua sắm",
+                "tài khoản hoàn tiền",
+                "khuyến mãi hoàn tiền",
+                "hoàn tiền khi thanh toán",
+            )
+        )
 
     def _detect_intent(self, text: str) -> IntentName:
         lowered = text.lower()
@@ -473,6 +582,7 @@ class RuleBasedAgent:
             return IntentName.BANK_TRANSFER_NOT_RECEIVED
         refund_markers = (
             "hoàn tiền",
+            "cashback",
             "tiền hoàn",
             "khoản hoàn",
             "refund",
@@ -609,6 +719,16 @@ class RuleBasedAgent:
             state = self._add_transaction_context(
                 state, tool_result, self._wrong_bank_details_reported(history or [])
             )
+        if (
+            tool_result is not None
+            and tool_result.success
+            and tool_result.tool_name is ToolName.GET_REFUND_STATUS
+            and decision.intent.intent is IntentName.MISSING_REFUND
+            and get_intent_contract(decision.intent.intent).allows_context(
+                ContextScope.REFUND
+            )
+        ):
+            state = self._add_refund_context(state, tool_result)
         if state.status is CaseStatus.NEW:
             state = state.transition_to(CaseStatus.TRIAGING)
         if decision.action is CaseAction.ASK_CLARIFICATION:
@@ -629,6 +749,7 @@ class RuleBasedAgent:
                     OutcomeName.BANK_TRANSFER_PENDING_RECONCILIATION,
                     OutcomeName.BANK_TRANSFER_DELAYED_BENEFICIARY_POSTING,
                     OutcomeName.BANK_TRANSFER_FAILED_RETURN,
+                    OutcomeName.CASHBACK_PENDING_WITHIN_24_HOURS,
                 }
                 and (state.status is CaseStatus.TRIAGING or state.status is CaseStatus.IN_PROGRESS)
             ):
@@ -714,6 +835,24 @@ class RuleBasedAgent:
                     elapsed_working_days=data.get("elapsed_working_days"),
                     return_elapsed_working_days=data.get("return_elapsed_working_days"),
                     wrong_details_reported=wrong_details_reported,
+                ),
+            )
+        except (KeyError, TypeError, ValueError):
+            return state
+        return state.with_context(context)
+
+    def _add_refund_context(self, state: CaseState, tool_result: ToolResult) -> CaseState:
+        data = tool_result.data
+        try:
+            context = ContextSnapshot(
+                scopes=(ContextScope.REFUND,),
+                refund=RefundSnapshot(
+                    refund_id=str(data["refund_id"]),
+                    status=RefundStatus(str(data["refund_status"])),
+                    amount_minor=int(data["amount_minor"]),
+                    currency=str(data["currency"]),
+                    cashback_elapsed_hours=data.get("cashback_elapsed_hours"),
+                    cashback_reason=data.get("cashback_reason"),
                 ),
             )
         except (KeyError, TypeError, ValueError):
@@ -827,6 +966,19 @@ class LLMAgent(RuleBasedAgent):
             else:
                 action = CaseAction.RETRIEVE_CONTEXT
                 tool = ToolName.GET_TRANSACTION_STATUS
+                tool_args = {}
+        elif (
+            intent is IntentName.MISSING_REFUND
+            and self._is_cashback_request(history)
+            and action is CaseAction.ANSWER
+        ):
+            if SlotName.TRANSACTION_ID not in slots:
+                action = CaseAction.ASK_CLARIFICATION
+                tool = None
+                tool_args = {}
+            else:
+                action = CaseAction.RETRIEVE_CONTEXT
+                tool = ToolName.GET_REFUND_STATUS
                 tool_args = {}
         elif (
             self._should_create_ticket(history[-1].text, intent)

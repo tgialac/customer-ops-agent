@@ -25,7 +25,7 @@ harness smoke test, not an LLM quality claim. The LLM adapter is intentionally
 not called in CI unless a key is supplied; its provider can be injected in
 unit tests.
 
-The first source-backed workflow has its own ten-case suite:
+The source-backed workflows have separate suites:
 
 ```bash
 python -m momo_ops_agent.eval_runner \
@@ -36,6 +36,27 @@ python -m momo_ops_agent.eval_runner \
 These cases grade the final action/status/outcome and the read-only lookup
 recorded in the trace. This keeps policy acceptance separate from the broader
 synthetic intent-routing baseline.
+
+The cashback workflow is evaluated independently from the bank-transfer
+workflow because its official policy has different eligibility, limits, and a
+24-hour window:
+
+```bash
+uv run python -m momo_ops_agent.eval_runner \
+  --golden-set data/golden/cashback_not_received_v1.jsonl \
+  --fixtures data/golden/fixtures.json
+```
+
+For source-backed answer review, write a JSON artifact containing the final
+customer response, source, policy key, guardrail checks, retry count, and
+human-review status:
+
+```bash
+uv run --env-file .env --extra openai python scripts/run_answer_qa.py \
+  --harness openai --model gpt-5.6-luna \
+  --golden-set data/golden/cashback_not_received_v1.jsonl \
+  --output artifacts/qa/cashback_not_received_v1_live.json
+```
 
 When the OpenAI harness is used, the same workflow also exercises the
 knowledge-backed answer writer, structured draft validation, and one retry
