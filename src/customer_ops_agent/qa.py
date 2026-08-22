@@ -41,6 +41,56 @@ class AnswerQAReport(StrictModel):
     records: tuple[AnswerQARecord, ...]
 
 
+_REVIEW_FINGERPRINT_FIELDS = (
+    "customer_message",
+    "response",
+    "actual_outcome",
+    "policy_message_key",
+    "source_document_id",
+)
+
+
+class ReviewGateReport(StrictModel):
+    """Release decision after automated checks and human review are combined."""
+
+    schema_version: Literal[1] = 1
+    passed: bool
+    total: int
+    automated_passed: int
+    approved: int
+    pending: int
+    rejected: int
+    automated_failures: tuple[str, ...]
+    pending_cases: tuple[str, ...]
+    rejected_cases: tuple[str, ...]
+
+
+def evaluate_review_gate(report: AnswerQAReport) -> ReviewGateReport:
+    """Require every case to pass automation and receive explicit approval."""
+
+    automated_failures = tuple(
+        record.case_id for record in report.records if not record.automated_pass
+    )
+    approved = tuple(record.case_id for record in report.records if record.review_status == "approved")
+    pending = tuple(record.case_id for record in report.records if record.review_status == "pending")
+    rejected = tuple(record.case_id for record in report.records if record.review_status == "rejected")
+    return ReviewGateReport(
+        passed=bool(report.records)
+        and not automated_failures
+        and not pending
+        and not rejected
+        and len(approved) == len(report.records),
+        total=report.total,
+        automated_passed=report.automated_passed,
+        approved=len(approved),
+        pending=len(pending),
+        rejected=len(rejected),
+        automated_failures=automated_failures,
+        pending_cases=pending,
+        rejected_cases=rejected,
+    )
+
+
 def _grade_case(case: GoldenCase, run: AgentRun) -> AnswerQARecord:
     # Keep the artifact independent from the broader EvalRecord so reviewers
     # see the actual customer-facing answer and its grounding metadata.
@@ -117,7 +167,11 @@ def run_answer_qa(
         )
         record = _grade_case(case, run)
         old = previous.get(case.case_id)
-        if old is not None:
+        review_target_unchanged = old is not None and all(
+            old.get(field) == getattr(record, field)
+            for field in _REVIEW_FINGERPRINT_FIELDS
+        )
+        if review_target_unchanged:
             record = record.model_copy(
                 update={
                     "review_status": old.get("review_status", "pending"),

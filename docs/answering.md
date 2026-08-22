@@ -39,6 +39,11 @@ same `KnowledgeBackedAnswerer` boundary later.
 
 ## Human-review QA loop
 
+The flagship review scope is `cashback_not_received_v1`, which is the closest
+equivalent to Monzo's first missing-refund workflow. It is deliberately
+reviewed as a separate human gate rather than being treated as complete just
+because automated evals pass.
+
 Run the source-backed suite through the deterministic harness for a fast local
 check:
 
@@ -57,5 +62,16 @@ The command writes an ignored JSON artifact under `artifacts/qa/`. Each record
 contains the customer-facing response, its internal response handle, source
 URL/document, policy message key, retry count, automated checks, and
 `review_status: "pending"`. A reviewer
-can set that status to `approved` or `rejected` and add `reviewer_notes`; pass
-the artifact back with `--previous` on the next run to preserve those fields.
+can set that status to `approved` or `rejected` and add `reviewer_notes`.
+Re-running with the same output path preserves review fields only when the
+reviewed message and policy identity are unchanged; `--previous` can be used
+to load a different prior artifact.
+
+Run the explicit human-review gate after reviewing the artifact:
+
+```bash
+uv run python scripts/run_review_gate.py
+```
+
+See [the full review protocol](review-loop.md) and run the compact pitch demo
+with `uv run python scripts/run_flagship_demo.py`.

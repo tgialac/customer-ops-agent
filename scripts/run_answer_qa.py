@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument(
         "--golden-set",
         type=Path,
-        default=Path("data/golden/bank_transfer_not_received_v1.jsonl"),
+        default=Path("data/golden/cashback_not_received_v1.jsonl"),
     )
     parser.add_argument(
         "--fixtures", type=Path, default=Path("data/golden/fixtures.json")
@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("artifacts/qa/bank_transfer_not_received_v1.json"),
+        default=Path("artifacts/qa/cashback_not_received_v1.json"),
     )
     parser.add_argument("--previous", type=Path)
     parser.add_argument("--harness", choices=("rule", "openai"), default="openai")
@@ -35,11 +35,14 @@ def main() -> None:
         if args.harness == "openai"
         else RuleBasedAgent()
     )
+    previous_path = args.previous
+    if previous_path is None and args.output.exists():
+        previous_path = args.output
     report = run_answer_qa(
         args.golden_set,
         args.fixtures,
         agent,
-        previous_path=args.previous,
+        previous_path=previous_path,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
