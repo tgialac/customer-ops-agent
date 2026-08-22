@@ -9,8 +9,10 @@ from .contracts import CaseAction, IntentName, StrictModel
 from .policies import (
     BANK_TRANSFER_POLICY_SOURCE,
     CASHBACK_POLICY_SOURCE,
+    GOOGLE_PLAY_REFUND_POLICY_SOURCE,
     is_grounded_bank_transfer_response,
     is_grounded_cashback_response,
+    is_grounded_google_play_response,
 )
 
 
@@ -82,7 +84,10 @@ def check_output(
     if intent is not IntentName.BANK_TRANSFER_NOT_RECEIVED:
         if not (
             intent is IntentName.MISSING_REFUND
-            and policy_source == CASHBACK_POLICY_SOURCE
+            and policy_source in {
+                CASHBACK_POLICY_SOURCE,
+                GOOGLE_PLAY_REFUND_POLICY_SOURCE,
+            }
         ):
             return GuardrailResult(stage=GuardrailStage.OUTPUT, passed=True)
 
@@ -98,6 +103,12 @@ def check_output(
             and is_grounded_cashback_response(response, message_key=policy_message_key)
         )
         reason = None if passed else "cashback_answer_not_bound_to_policy"
+    elif action is CaseAction.ANSWER and policy_source == GOOGLE_PLAY_REFUND_POLICY_SOURCE:
+        passed = (
+            policy_message_key is not None
+            and is_grounded_google_play_response(response, message_key=policy_message_key)
+        )
+        reason = None if passed else "google_play_answer_not_bound_to_policy"
     elif action is CaseAction.ANSWER:
         passed = (
             policy_source == BANK_TRANSFER_POLICY_SOURCE

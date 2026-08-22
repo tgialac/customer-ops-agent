@@ -2,6 +2,7 @@ from momo_ops_agent.contracts import SlotName
 from momo_ops_agent.workflows import (
     BANK_TRANSFER_NOT_RECEIVED_V1,
     CASHBACK_NOT_RECEIVED_V1,
+    GOOGLE_PLAY_REFUND_V1,
     WorkflowName,
     get_workflow,
 )
@@ -33,4 +34,13 @@ def test_cashback_workflow_is_separate_and_source_backed() -> None:
     assert workflow.required_slots == (SlotName.TRANSACTION_ID,)
     assert "cashback still within the public 24-hour window" in workflow.included_scenarios
     assert "merchant Payment API refund" in workflow.excluded_scenarios
+    assert all(url.startswith("https://www.momo.vn/") for url in workflow.source_urls)
+
+
+def test_google_play_workflow_has_no_transaction_slot_requirement() -> None:
+    workflow = get_workflow(WorkflowName.GOOGLE_PLAY_REFUND_V1)
+
+    assert workflow is GOOGLE_PLAY_REFUND_V1
+    assert workflow.required_slots == ()
+    assert "refund timing guarantees" in workflow.excluded_scenarios
     assert all(url.startswith("https://www.momo.vn/") for url in workflow.source_urls)

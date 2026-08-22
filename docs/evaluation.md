@@ -58,6 +58,15 @@ uv run --env-file .env --extra openai python scripts/run_answer_qa.py \
   --output artifacts/qa/cashback_not_received_v1_live.json
 ```
 
+Google Play refund instructions are also a separate source-backed workflow;
+it answers with the official request path without requiring a transaction ID:
+
+```bash
+uv run python -m momo_ops_agent.eval_runner \
+  --golden-set data/golden/google_play_refund_v1.jsonl \
+  --fixtures data/golden/fixtures.json
+```
+
 When the OpenAI harness is used, the same workflow also exercises the
 knowledge-backed answer writer, structured draft validation, and one retry
 before handoff. `AgentTrace.answer_generation_attempts` makes that behavior

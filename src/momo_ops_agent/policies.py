@@ -12,6 +12,7 @@ from .contracts import FundingSource, StrictModel, TransactionStatus
 
 BANK_TRANSFER_POLICY_SOURCE = "momo-faq-bank-transfer-reversal-2026-08-22"
 CASHBACK_POLICY_SOURCE = "momo-faq-cashback-not-received-2026-08-22"
+GOOGLE_PLAY_REFUND_POLICY_SOURCE = "momo-faq-google-play-refund-2026-08-22"
 
 
 class BankTransferPolicyAction(str, Enum):
@@ -58,6 +59,11 @@ class CashbackPolicyDecision(StrictModel):
     source_document_id: str = CASHBACK_POLICY_SOURCE
     message_key: str
     handoff_required: bool = False
+
+
+class GooglePlayRefundPolicyDecision(StrictModel):
+    source_document_id: str = GOOGLE_PLAY_REFUND_POLICY_SOURCE
+    message_key: str = "google_play_refund_request_steps"
 
 
 def render_bank_transfer_response(decision: BankTransferPolicyDecision) -> str:
@@ -203,6 +209,51 @@ def is_grounded_cashback_response(response: str, *, message_key: str) -> bool:
     if required is None:
         return False
     return required[0] in lowered and all(term in lowered for term in required[1])
+
+
+def render_google_play_refund_response(
+    message_key: str = "google_play_refund_request_steps",
+) -> str:
+    messages = {
+        "google_play_refund_request_steps": (
+            "Để yêu cầu hoàn tiền cho ứng dụng đã mua, bạn mở Google Play, chọn "
+            "Tài khoản > Lịch sử đơn đặt hàng, chọn ứng dụng cần hoàn tiền rồi bấm "
+            "Báo cáo sự cố. Kết quả hoàn tiền sẽ được gửi đến email đăng ký Google Play "
+            "và hiển thị trên ứng dụng MoMo; thời gian xử lý phụ thuộc vào quy định của Google Play."
+        ),
+        "google_play_refund_result_location": (
+            "Kết quả hoàn tiền sẽ được gửi đến email đăng ký Google Play và hiển thị "
+            "trên ứng dụng MoMo. Thời gian xử lý phụ thuộc vào quy định của Google Play."
+        ),
+    }
+    try:
+        return messages[message_key]
+    except KeyError as exc:
+        raise ValueError(f"no customer-facing response is approved for {message_key}") from exc
+
+
+def is_grounded_google_play_response(response: str, *, message_key: str) -> bool:
+    lowered = response.casefold()
+    if len(response) > 2_000 or any(
+        phrase in lowered for phrase in ("chắc chắn", "ngay lập tức", "đảm bảo")
+    ):
+        return False
+    if message_key == "google_play_refund_result_location":
+        return all(
+            term in lowered
+            for term in ("email", "google play", "momo", "thời gian xử lý")
+        )
+    if message_key != "google_play_refund_request_steps":
+        return False
+    required_terms = (
+        "google play",
+        "lịch sử đơn đặt hàng",
+        "báo cáo sự cố",
+        "email",
+        "momo",
+        "thời gian xử lý",
+    )
+    return all(term in lowered for term in required_terms)
 
 
 def evaluate_cashback_policy(

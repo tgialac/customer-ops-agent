@@ -58,6 +58,7 @@ class OutcomeName(str, Enum):
     CASHBACK_ACCOUNT_LIMIT_REACHED = "cashback_account_limit_reached"
     CASHBACK_MONTHLY_LIMIT_REACHED = "cashback_monthly_limit_reached"
     CASHBACK_HANDOFF = "cashback_handoff"
+    GOOGLE_PLAY_REFUND_INSTRUCTIONS = "google_play_refund_instructions"
 
 
 class GoldenTurn(StrictModel):

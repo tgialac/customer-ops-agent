@@ -33,10 +33,12 @@ from .policies import (
     BankTransferPolicyInput,
     CASHBACK_POLICY_SOURCE,
     CashbackPolicyInput,
+    GOOGLE_PLAY_REFUND_POLICY_SOURCE,
     evaluate_bank_transfer_policy,
     evaluate_cashback_policy,
     render_cashback_response,
     render_bank_transfer_response,
+    render_google_play_refund_response,
 )
 from .guardrails import GuardrailResult, check_input, check_output
 from .answering import (
@@ -271,6 +273,13 @@ class RuleBasedAgent:
                 action=CaseAction.HANDOFF,
             )
 
+        if self._is_google_play_request(history):
+            return RouterDecision(
+                intent=prediction,
+                slots=slots,
+                action=CaseAction.ANSWER,
+            )
+
         if self._should_answer_from_history(history):
             return RouterDecision(
                 intent=prediction,
@@ -335,6 +344,12 @@ class RuleBasedAgent:
             return self._materialize_cashback_decision(
                 router_decision, history, tool_result
             )
+        if (
+            intent is IntentName.MISSING_REFUND
+            and router_decision.action is CaseAction.ANSWER
+            and self._is_google_play_request(history)
+        ):
+            return self._materialize_google_play_decision(router_decision, history)
         if router_decision.policy_violation is not None:
             outcome = OutcomeName.POLICY_GUARDRAIL_HANDOFF
             response = "handoff"
@@ -536,6 +551,26 @@ class RuleBasedAgent:
             customer_response=response,
         )
 
+    def _materialize_google_play_decision(
+        self, router_decision: RouterDecision, history: list[GoldenTurn]
+    ) -> AgentDecision:
+        message_key = self._google_play_message_key(history)
+        response = render_google_play_refund_response(message_key)
+        base = router_decision.model_dump(exclude={"policy_violation"})
+        base.update(
+            action=CaseAction.ANSWER,
+            tool=None,
+            tool_args={},
+            policy_source=GOOGLE_PLAY_REFUND_POLICY_SOURCE,
+            policy_message_key=message_key,
+        )
+        return AgentDecision(
+            **base,
+            outcome=OutcomeName.GOOGLE_PLAY_REFUND_INSTRUCTIONS,
+            response=response,
+            customer_response=response,
+        )
+
     def _retrieve_outcome(self, text: str, tool: ToolName) -> str:
         if tool is ToolName.GET_REFUND_STATUS:
             return "retrieve_refund_status"
@@ -559,6 +594,23 @@ class RuleBasedAgent:
                 "khuyến mãi hoàn tiền",
                 "hoàn tiền khi thanh toán",
             )
+        )
+
+    def _is_google_play_request(self, history: list[GoldenTurn]) -> bool:
+        text = " ".join(turn.text.lower() for turn in history)
+        return "google play" in text or (
+            "ứng dụng" in text and "hoàn tiền" in text
+        )
+
+    def _google_play_message_key(self, history: list[GoldenTurn]) -> str:
+        text = " ".join(turn.text.lower() for turn in history)
+        asks_result_location = "kết quả" in text and any(
+            marker in text for marker in ("ở đâu", "gửi", "hiển thị")
+        )
+        return (
+            "google_play_refund_result_location"
+            if asks_result_location
+            else "google_play_refund_request_steps"
         )
 
     def _detect_intent(self, text: str) -> IntentName:
@@ -956,6 +1008,10 @@ class LLMAgent(RuleBasedAgent):
 
         if self._should_handoff(history[-1].text, " ".join(turn.text for turn in history)):
             action = CaseAction.HANDOFF
+            tool = None
+            tool_args = {}
+        elif intent is IntentName.MISSING_REFUND and self._is_google_play_request(history):
+            action = CaseAction.ANSWER
             tool = None
             tool_args = {}
         elif intent is IntentName.BANK_TRANSFER_NOT_RECEIVED and action is CaseAction.ANSWER:

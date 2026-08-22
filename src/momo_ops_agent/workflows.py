@@ -10,6 +10,7 @@ from .contracts import SlotName, StrictModel
 class WorkflowName(str, Enum):
     BANK_TRANSFER_NOT_RECEIVED_V1 = "bank_transfer_not_received_v1"
     CASHBACK_NOT_RECEIVED_V1 = "cashback_not_received_v1"
+    GOOGLE_PLAY_REFUND_V1 = "google_play_refund_v1"
 
 
 class WorkflowSpec(StrictModel):
@@ -115,9 +116,41 @@ CASHBACK_NOT_RECEIVED_V1 = WorkflowSpec(
 )
 
 
+GOOGLE_PLAY_REFUND_V1 = WorkflowSpec(
+    workflow=WorkflowName.GOOGLE_PLAY_REFUND_V1,
+    customer_problem=(
+        "A customer wants to request a refund for an app purchased through Google Play."
+    ),
+    entry_condition=(
+        "The customer explicitly mentions Google Play or an app purchase and asks about a refund."
+    ),
+    included_scenarios=(
+        "requesting a Google Play app refund",
+        "asking where to submit the refund request",
+        "asking where the refund result will appear",
+    ),
+    excluded_scenarios=(
+        "merchant Payment API refund",
+        "cashback not received",
+        "bank-transfer reversal",
+        "refund timing guarantees",
+    ),
+    required_slots=(),
+    terminal_outcomes=("provide_google_play_refund_steps",),
+    handoff_conditions=(
+        "the customer needs a case-specific status not covered by the public FAQ",
+        "an answer guardrail fails",
+    ),
+    source_urls=(
+        "https://www.momo.vn/hoi-dap/toi-muon-hoan-tien-da-giao-dich-cho-ung-dung-da-mua",
+    ),
+)
+
+
 WORKFLOW_CATALOG = {
     WorkflowName.BANK_TRANSFER_NOT_RECEIVED_V1: BANK_TRANSFER_NOT_RECEIVED_V1,
     WorkflowName.CASHBACK_NOT_RECEIVED_V1: CASHBACK_NOT_RECEIVED_V1,
+    WorkflowName.GOOGLE_PLAY_REFUND_V1: GOOGLE_PLAY_REFUND_V1,
 }
 
 
