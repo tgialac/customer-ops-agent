@@ -36,6 +36,14 @@ refund answer.
 - For wrong details, recovery depends on the receiving bank and potentially the
   mistaken recipient; this is a support/handoff path, not an automatic refund.
 
+The deterministic decision table is implemented in
+`src/momo_ops_agent/policies.py`. It treats the public windows as escalation
+thresholds, not guaranteed settlement times: a pending transfer is only
+explained within 2 working days, a successful transfer with delayed posting
+within 3 working days, and a failed transfer return within 2 working days.
+Missing timing data does not create a new promise; an unknown state or an
+overdue case goes to support.
+
 Sources:
 
 - [MoMo: money debited but bank beneficiary has not received it](https://www.momo.vn/hoi-dap/vi-sao-tai-khoan-da-bi-tru-tien-nhung-tai-khoan-ngan-hang-nguoi-nhan-chua-nhan-duoc)
