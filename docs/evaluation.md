@@ -25,6 +25,10 @@ harness smoke test, not an LLM quality claim. The LLM adapter is intentionally
 not called in CI unless a key is supplied; its provider can be injected in
 unit tests.
 
+LLM iteration uses `scripts/run_smoke_eval.py`, a fixed 12-case stratified
+gate covering missing-slot, retrieval, answer, ticket, handoff, and ambiguous
+routing behavior. The 60-case set is reserved for regression/release checks.
+
 Run the LLM adapter with:
 
 ```bash
@@ -34,10 +38,11 @@ python -m momo_ops_agent.eval_runner --harness openai --model gpt-5.6
 ```
 
 The adapter uses the OpenAI Responses API's Pydantic Structured Outputs to
-parse `AgentDecision`. The application then enforces the intent contract and
-dispatches only the three allowlisted backend tools. A semantic contract
-violation becomes a visible safe handoff in the trace, so it fails the golden
-case without mutating backend state.
+parse only `RouterDecision` (intent, slots, action, and tool arguments). The
+application then enforces the intent contract, dispatches only the three
+allowlisted backend tools, and derives the outcome/response outside the model.
+A semantic contract violation becomes a visible safe handoff in the trace, so
+it fails the golden case without mutating backend state.
 
 ## Why this shape
 

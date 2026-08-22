@@ -52,5 +52,13 @@ export OPENAI_API_KEY='...'
 python -m momo_ops_agent.eval_runner --harness openai --model gpt-5.6
 ```
 
-The model proposes an `AgentDecision`; the application validates the intent
-contract and allowlisted tool arguments before the stateful backend runs.
+The model proposes a `RouterDecision` only. The application validates the
+intent contract and allowlisted tool arguments, runs the stateful backend, and
+materializes the outcome/response through deterministic policy code.
+
+For fast LLM iteration, run the 12-case smoke gate instead of the full
+regression set:
+
+```bash
+uv run --extra openai python scripts/run_smoke_eval.py --model gpt-5.6-luna
+```

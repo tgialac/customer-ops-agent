@@ -23,7 +23,9 @@ class ToolName(str, Enum):
 
 class OutcomeName(str, Enum):
     ASK_FOR_TRANSACTION_ID = "ask_for_transaction_id"
+    ANSWER_FROM_TOOL_RESULT = "answer_from_tool_result"
     CONFIRM_TRANSACTION_COMPLETED = "confirm_transaction_completed"
+    CLOSE_CASE = "close_case"
     CREATE_REFUND_INVESTIGATION_TICKET = "create_refund_investigation_ticket"
     CREATE_TRANSACTION_FAILURE_TICKET = "create_transaction_failure_ticket"
     ESCALATE_COMPLETED_REFUND_DISPUTE = "escalate_completed_refund_dispute"

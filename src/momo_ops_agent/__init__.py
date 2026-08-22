@@ -15,8 +15,22 @@ from .contracts import (
     get_intent_contract,
 )
 from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
-from .agent_harness import AgentDecision, AgentHarness, AgentRun, LLMAgent, RuleBasedAgent
+from .agent_harness import (
+    AgentDecision,
+    AgentHarness,
+    AgentRun,
+    LLMAgent,
+    RouterDecision,
+    RuleBasedAgent,
+)
 from .mock_backend import MockBackend, ToolResult, TransactionRecord
+from .knowledge import KnowledgeDocument, KnowledgeHit, KnowledgeStore, KnowledgeTopic
+from .workflows import (
+    BANK_TRANSFER_NOT_RECEIVED_V1,
+    WorkflowName,
+    WorkflowSpec,
+    get_workflow,
+)
 
 __all__ = [
     "ACTIONS",
@@ -40,8 +54,17 @@ __all__ = [
     "AgentHarness",
     "AgentRun",
     "LLMAgent",
+    "RouterDecision",
     "RuleBasedAgent",
     "MockBackend",
     "ToolResult",
     "TransactionRecord",
+    "KnowledgeDocument",
+    "KnowledgeHit",
+    "KnowledgeStore",
+    "KnowledgeTopic",
+    "BANK_TRANSFER_NOT_RECEIVED_V1",
+    "WorkflowName",
+    "WorkflowSpec",
+    "get_workflow",
 ]
