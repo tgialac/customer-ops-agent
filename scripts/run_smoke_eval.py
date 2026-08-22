@@ -1,8 +1,8 @@
 """Run the small, representative LLM smoke gate.
 
 This intentionally uses 12 cases instead of the full regression set. The
-smoke gate is for fast contract/policy iteration; the 60-case set remains a
-release/regression evaluation.
+smoke gate is for fast contract/policy iteration; the full offline release
+gate lives in ``scripts/run_release_gate.py``.
 """
 
 from __future__ import annotations

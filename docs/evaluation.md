@@ -25,6 +25,17 @@ harness smoke test, not an LLM quality claim. The LLM adapter is intentionally
 not called in CI unless a key is supplied; its provider can be injected in
 unit tests.
 
+Run the complete offline release gate with one command:
+
+```bash
+uv run python scripts/run_release_gate.py
+```
+
+It runs the 60-case synthetic baseline, all three source-backed workflows, and
+the cross-workflow boundary suite. The gate exits non-zero if any case fails.
+For an API-backed full pass, use `--harness openai --model gpt-5.6-luna`; the
+default rule harness is the deterministic CI gate.
+
 The source-backed workflows have separate suites:
 
 ```bash

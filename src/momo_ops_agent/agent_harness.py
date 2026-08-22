@@ -732,6 +732,8 @@ class RuleBasedAgent:
         return "handoff_on_customer_request"
 
     def _answer_outcome(self, history: list[GoldenTurn], intent: IntentName) -> str:
+        if len(history) < 2:
+            return "answer_from_tool_result"
         previous = history[-2].text.lower()
         current = history[-1].text.lower()
         if "processing" in previous:
@@ -1049,6 +1051,20 @@ class LLMAgent(RuleBasedAgent):
                 "transaction_id": slots[SlotName.TRANSACTION_ID],
                 "reason": "customer_operations_investigation",
             }
+        elif action is CaseAction.ANSWER and not self._should_answer_from_history(history):
+            action = CaseAction.RETRIEVE_CONTEXT
+            if intent is IntentName.MISSING_REFUND:
+                tool = ToolName.GET_REFUND_STATUS
+            elif intent in {
+                IntentName.TRANSACTION_PENDING,
+                IntentName.TRANSACTION_FAILED,
+                IntentName.BANK_TRANSFER_NOT_RECEIVED,
+            }:
+                tool = ToolName.GET_TRANSACTION_STATUS
+            else:
+                action = CaseAction.HANDOFF
+                tool = None
+            tool_args = {}
         elif action is CaseAction.RETRIEVE_CONTEXT:
             if intent is IntentName.MISSING_REFUND:
                 tool = ToolName.GET_REFUND_STATUS

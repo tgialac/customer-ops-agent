@@ -28,6 +28,12 @@ python -m momo_ops_agent.eval_runner
 See [the evaluation design](docs/evaluation.md) for the trace, grader, and
 mock-backend boundaries.
 
+Run the complete offline release gate with:
+
+```bash
+uv run python scripts/run_release_gate.py
+```
+
 The same runner can execute the optional structured-output LLM decision
 adapter. Install the extra and provide a key outside the repository:
 
