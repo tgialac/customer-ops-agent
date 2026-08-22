@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import Field
 
-from .agent_harness import AgentRun, RuleBasedAgent
+from .agent_harness import AgentHarness, AgentRun, LLMAgent, RuleBasedAgent
 from .contracts import RefundStatus, StrictModel, TransactionStatus
 from .evaluation import GoldenCase
 from .mock_backend import MockBackend, TransactionRecord
@@ -75,7 +75,7 @@ def build_backend(case: GoldenCase, fixture_config: dict[str, Any]) -> MockBacke
 def evaluate_case(
     case: GoldenCase,
     fixture_config: dict[str, Any],
-    agent: RuleBasedAgent | None = None,
+    agent: AgentHarness | None = None,
 ) -> EvalRecord:
     harness = agent or RuleBasedAgent()
     run: AgentRun = harness.run(case.case_id, case.turns, build_backend(case, fixture_config))
@@ -110,11 +110,12 @@ def evaluate_case(
 def run_evaluation(
     golden_path: Path,
     fixture_path: Path,
-    agent: RuleBasedAgent | None = None,
+    agent: AgentHarness | None = None,
 ) -> EvalSummary:
     cases = load_cases(golden_path)
     fixtures = load_fixture_config(fixture_path)
-    records = tuple(evaluate_case(case, fixtures, agent) for case in cases)
+    harness = agent or RuleBasedAgent()
+    records = tuple(evaluate_case(case, fixtures, harness) for case in cases)
     by_intent: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "passed": 0})
     for record in records:
         counts = by_intent[record.expected_intent]
@@ -122,7 +123,7 @@ def run_evaluation(
         counts["passed"] += int(record.passed)
     passed = sum(record.passed for record in records)
     return EvalSummary(
-        harness="rule_based_v1",
+        harness=harness.harness_name,
         total=len(records),
         passed=passed,
         pass_rate=passed / len(records) if records else 0.0,
@@ -144,8 +145,20 @@ def main() -> None:
         default=Path("data/golden/fixtures.json"),
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--harness",
+        choices=("rule", "openai"),
+        default="rule",
+        help="offline rule baseline or optional OpenAI Responses adapter",
+    )
+    parser.add_argument("--model", help="model for --harness openai")
     args = parser.parse_args()
-    summary = run_evaluation(args.golden_set, args.fixtures)
+    agent: AgentHarness = (
+        LLMAgent.from_environment(args.model)
+        if args.harness == "openai"
+        else RuleBasedAgent()
+    )
+    summary = run_evaluation(args.golden_set, args.fixtures, agent)
     payload = summary.model_dump(mode="json")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

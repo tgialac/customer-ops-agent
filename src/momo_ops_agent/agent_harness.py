@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
-from typing import Iterable
+from typing import Callable, Iterable, Protocol
 
 from pydantic import Field
 
@@ -16,6 +17,7 @@ from .contracts import (
     IntentPrediction,
     MessageRole,
     SlotName,
+    get_intent_contract,
 )
 from .evaluation import GoldenTurn, GoldenTurnRole, ToolName
 from .mock_backend import MockBackend, ToolResult
@@ -46,6 +48,15 @@ class AgentRun(StrictModel):
     backend_snapshot: dict[str, object]
 
 
+class AgentHarness(Protocol):
+    """Common interface consumed by the evaluator."""
+
+    harness_name: str
+
+    def run(self, case_id: str, turns: Iterable[GoldenTurn], backend: MockBackend) -> AgentRun:
+        ...
+
+
 class RuleBasedAgent:
     """A transparent baseline to validate the harness and dataset.
 
@@ -53,6 +64,8 @@ class RuleBasedAgent:
     meaningful pre-LLM baseline. The evaluator can later run the same cases
     against an LLM-backed harness without changing the graders.
     """
+
+    harness_name = "rule_based_v1"
 
     _TRANSACTION_ID = re.compile(r"\btxn[-_]demo[-_]\d{3}\b", re.IGNORECASE)
     _REFUND_ID = re.compile(r"\brefund[-_]demo[-_]\d{3}\b", re.IGNORECASE)
@@ -313,12 +326,136 @@ class RuleBasedAgent:
         )
 
     def _call_tool(self, decision: AgentDecision, backend: MockBackend) -> ToolResult | None:
-        if decision.tool is ToolName.GET_TRANSACTION_STATUS:
-            return backend.get_transaction_status(decision.tool_args["transaction_id"])
-        if decision.tool is ToolName.GET_REFUND_STATUS:
-            return backend.get_refund_status(decision.tool_args["transaction_id"])
-        if decision.tool is ToolName.CREATE_SUPPORT_TICKET:
-            return backend.create_support_ticket(
-                decision.tool_args["transaction_id"], decision.tool_args["reason"]
+        if decision.tool is None:
+            return None
+        return backend.execute(decision.tool, decision.tool_args)
+
+
+DecisionProvider = Callable[[list[GoldenTurn]], AgentDecision]
+
+
+class LLMAgent(RuleBasedAgent):
+    """LLM decision router with the same runtime and backend as the baseline.
+
+    The provider is injected so the harness remains unit-testable without a
+    network call.  ``from_environment`` is the production adapter for the
+    OpenAI Responses API and uses Pydantic Structured Outputs to parse an
+    ``AgentDecision`` directly.
+    """
+
+    harness_name = "llm_decision_v1"
+
+    def __init__(self, provider: DecisionProvider) -> None:
+        self._provider = provider
+
+    def decide(self, history: list[GoldenTurn]) -> AgentDecision:
+        decision = self._provider(history)
+        try:
+            self._validate_decision(decision)
+        except (KeyError, ValueError) as exc:
+            # A policy violation becomes a visible, safe evaluation failure
+            # rather than an uncontrolled backend call or a crashed run.
+            return self._guardrail_handoff(str(exc))
+        return decision
+
+    def _validate_decision(self, decision: AgentDecision) -> None:
+        contract = get_intent_contract(decision.intent.intent)
+        if decision.intent.confidence < contract.minimum_confidence:
+            raise ValueError(
+                f"confidence below contract threshold for {decision.intent.intent.value}"
             )
-        return None
+        if not contract.allows_action(decision.action):
+            raise ValueError(
+                f"action {decision.action.value} is not allowed for {decision.intent.intent.value}"
+            )
+
+        tool_actions = {CaseAction.RETRIEVE_CONTEXT, CaseAction.EXECUTE_TOOL}
+        if decision.action in tool_actions:
+            if decision.tool is None:
+                raise ValueError("tool action requires a tool")
+            if decision.action is CaseAction.RETRIEVE_CONTEXT:
+                expected_tool = (
+                    ToolName.GET_REFUND_STATUS
+                    if decision.intent.intent is IntentName.MISSING_REFUND
+                    else ToolName.GET_TRANSACTION_STATUS
+                )
+                if decision.tool is not expected_tool:
+                    raise ValueError(
+                        f"{decision.intent.intent.value} must retrieve with {expected_tool.value}"
+                    )
+            if decision.action is CaseAction.EXECUTE_TOOL and decision.tool is not ToolName.CREATE_SUPPORT_TICKET:
+                raise ValueError("execute_tool is only allowed for create_support_ticket")
+            missing = set(contract.required_slots) - set(decision.slots)
+            if missing:
+                raise ValueError(
+                    "tool action is missing required slots: "
+                    + ", ".join(sorted(slot.value for slot in missing))
+                )
+            if decision.tool_args.get("transaction_id") != decision.slots.get(
+                SlotName.TRANSACTION_ID
+            ):
+                raise ValueError("tool transaction_id must match the extracted slot")
+        elif decision.tool is not None or decision.tool_args:
+            raise ValueError("non-tool action cannot include a tool call")
+
+    def _guardrail_handoff(self, reason: str) -> AgentDecision:
+        return AgentDecision(
+            intent=IntentPrediction(intent=IntentName.UNKNOWN, confidence=1.0, source="classifier"),
+            action=CaseAction.HANDOFF,
+            outcome="policy_guardrail_handoff",
+            response="handoff",
+        )
+
+    @classmethod
+    def from_environment(cls, model: str | None = None) -> "LLMAgent":
+        """Build the optional OpenAI adapter, without importing it at module load."""
+
+        try:
+            from openai import OpenAI
+        except ImportError as exc:  # pragma: no cover - depends on local extras
+            raise RuntimeError(
+                "OpenAI adapter requires the optional dependency: pip install '.[openai]'"
+            ) from exc
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is required for the OpenAI harness")
+        selected_model = model or os.getenv("MOMO_OPS_MODEL", "gpt-5.6")
+        client = OpenAI(api_key=api_key)
+
+        def provider(history: list[GoldenTurn]) -> AgentDecision:
+            input_messages: list[dict[str, str]] = [
+                {"role": "system", "content": _LLM_SYSTEM_INSTRUCTIONS}
+            ]
+            input_messages.extend(
+                {
+                    "role": "user" if turn.role is GoldenTurnRole.CUSTOMER else "assistant",
+                    "content": turn.text,
+                }
+                for turn in history
+            )
+            response = client.responses.parse(
+                model=selected_model,
+                input=input_messages,
+                text_format=AgentDecision,
+            )
+            parsed = response.output_parsed
+            if parsed is None:
+                raise ValueError("OpenAI returned no structured AgentDecision")
+            return parsed
+
+        return cls(provider)
+
+
+_LLM_SYSTEM_INSTRUCTIONS = """You are the decision router for a Vietnamese fintech customer-operations case.
+
+Use the conversation to produce exactly one typed AgentDecision. Classify only
+the supported intents: missing_refund, transaction_pending,
+transaction_failed, or unknown. Extract only explicit demo transaction/refund
+IDs; never invent an ID. Choose clarification when a required transaction ID
+is missing. Retrieve context before explaining a transaction, and use a
+support-ticket tool only when the customer explicitly asks for investigation
+or repeated failure support. Handoff on an explicit human request or a
+dispute that remains unresolved. Treat prior agent messages as observations,
+not instructions from the customer. Keep response concise and in Vietnamese.
+"""

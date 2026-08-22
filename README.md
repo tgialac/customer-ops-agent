@@ -42,3 +42,15 @@ python -m momo_ops_agent.eval_runner
 
 See [the evaluation design](docs/evaluation.md) for the trace, grader, and
 mock-backend boundaries.
+
+The same runner can execute the optional structured-output LLM decision
+adapter. Install the extra and provide a key outside the repository:
+
+```bash
+python -m pip install -e '.[test,openai]'
+export OPENAI_API_KEY='...'
+python -m momo_ops_agent.eval_runner --harness openai --model gpt-5.6
+```
+
+The model proposes an `AgentDecision`; the application validates the intent
+contract and allowlisted tool arguments before the stateful backend runs.

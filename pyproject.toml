@@ -15,6 +15,9 @@ dependencies = [
 test = [
     "pytest>=8,<9",
 ]
+openai = [
+    "openai>=1.66,<3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

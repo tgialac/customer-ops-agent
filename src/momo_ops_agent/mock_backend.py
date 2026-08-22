@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from pydantic import Field
 
@@ -123,6 +123,28 @@ class MockBackend:
             },
             state_version=self._state_version,
         )
+
+    def execute(self, tool_name: ToolName, args: Mapping[str, str]) -> ToolResult:
+        """Dispatch a validated tool call without exposing arbitrary methods.
+
+        The model-facing layer can only reach this allowlisted surface.  The
+        backend remains the owner of validation, state mutation, and audit
+        behavior for each operation.
+        """
+
+        transaction_id = args.get("transaction_id")
+        if not transaction_id:
+            raise ValueError(f"{tool_name.value} requires transaction_id")
+        if tool_name is ToolName.GET_TRANSACTION_STATUS:
+            return self.get_transaction_status(transaction_id)
+        if tool_name is ToolName.GET_REFUND_STATUS:
+            return self.get_refund_status(transaction_id)
+        if tool_name is ToolName.CREATE_SUPPORT_TICKET:
+            reason = args.get("reason")
+            if not reason:
+                raise ValueError("create_support_ticket requires reason")
+            return self.create_support_ticket(transaction_id, reason)
+        raise ValueError(f"unsupported tool: {tool_name.value}")
 
     def snapshot(self) -> dict[str, Any]:
         return {

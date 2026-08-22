@@ -1,14 +1,14 @@
 # Evaluation runner and stateful mock backend
 
-This iteration adds an offline baseline so the agent can be measured before an
-LLM is introduced.
+This iteration adds an offline baseline and an optional structured-output LLM
+router while keeping the evaluator and backend unchanged.
 
 ## Components
 
 - `mock_backend.py`: deterministic transaction/refund records, state version,
   audit log, and idempotent support-ticket creation.
-- `agent_harness.py`: transparent rule-based baseline. It does not read the
-  expected labels from the golden set.
+- `agent_harness.py`: transparent rule-based baseline plus an injected-provider
+  `LLMAgent`. Neither reads the expected labels from the golden set.
 - `eval_runner.py`: replays every customer/agent turn and grades intent, slots,
   action, tool, case status, and outcome.
 - `data/golden/fixtures.json`: backend state fixtures kept separate from the
@@ -21,8 +21,23 @@ python -m momo_ops_agent.eval_runner
 ```
 
 The current rule-based baseline passes the 60 synthetic cases. This is a
-harness smoke test, not an LLM quality claim. The next agent implementation can
-replace `RuleBasedAgent` while keeping the same runner and graders.
+harness smoke test, not an LLM quality claim. The LLM adapter is intentionally
+not called in CI unless a key is supplied; its provider can be injected in
+unit tests.
+
+Run the LLM adapter with:
+
+```bash
+python -m pip install -e '.[test,openai]'
+export OPENAI_API_KEY='...'
+python -m momo_ops_agent.eval_runner --harness openai --model gpt-5.6
+```
+
+The adapter uses the OpenAI Responses API's Pydantic Structured Outputs to
+parse `AgentDecision`. The application then enforces the intent contract and
+dispatches only the three allowlisted backend tools. A semantic contract
+violation becomes a visible safe handoff in the trace, so it fails the golden
+case without mutating backend state.
 
 ## Why this shape
 
@@ -34,3 +49,5 @@ outcome.
 
 - [Monzo Ops Agent](https://monzo.com/blog/engineering-the-future-of-customer-operations-the-monzo-ops-agent)
 - [Anthropic — Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
+- [OpenAI — Structured model outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [OpenAI — Create a model response](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
