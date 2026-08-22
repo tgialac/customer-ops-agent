@@ -24,6 +24,8 @@ class EvalRecord(StrictModel):
     actual_action: str
     expected_tool: str | None
     actual_tool: str | None
+    expected_lookup_tool: str | None
+    actual_lookup_tool: str | None
     expected_status: str
     actual_status: str
     expected_outcome: str
@@ -68,6 +70,9 @@ def build_backend(case: GoldenCase, fixture_config: dict[str, Any]) -> MockBacke
         status=TransactionStatus(state["status"]),
         refund_id=refund_id or f"refund_for_{transaction_id}",
         refund_status=RefundStatus(refund_status) if refund_status else None,
+        funding_source=state.get("funding_source", "unknown"),
+        elapsed_working_days=state.get("elapsed_working_days"),
+        return_elapsed_working_days=state.get("return_elapsed_working_days"),
     )
     return MockBackend([record])
 
@@ -82,11 +87,19 @@ def evaluate_case(
     actual = run.final_decision
     expected_tool = case.expected_tool.value if case.expected_tool else None
     actual_tool = actual.tool.value if actual.tool else None
+    expected_lookup_tool = (
+        case.expected_lookup_tool.value if case.expected_lookup_tool else None
+    )
+    lookup_result = run.trace[-1].tool_result
+    actual_lookup_tool = lookup_result.tool_name.value if lookup_result else None
     checks = {
         "intent": actual.intent.intent is case.expected_intent,
         "slots": actual.slots == case.expected_slots,
         "action": actual.action is case.expected_action,
         "tool": actual_tool == expected_tool,
+        "lookup_tool": (
+            expected_lookup_tool is None or actual_lookup_tool == expected_lookup_tool
+        ),
         "status": run.case_state.status is case.expected_status,
         "outcome": actual.outcome == case.expected_outcome,
     }
@@ -98,6 +111,8 @@ def evaluate_case(
         actual_action=actual.action.value,
         expected_tool=expected_tool,
         actual_tool=actual_tool,
+        expected_lookup_tool=expected_lookup_tool,
+        actual_lookup_tool=actual_lookup_tool,
         expected_status=case.expected_status.value,
         actual_status=run.case_state.status.value,
         expected_outcome=case.expected_outcome,

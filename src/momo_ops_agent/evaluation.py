@@ -46,6 +46,13 @@ class OutcomeName(str, Enum):
     RETRIEVE_TRANSACTION_STATUS_BEFORE_CLASSIFICATION = (
         "retrieve_transaction_status_before_classification"
     )
+    BANK_TRANSFER_PENDING_RECONCILIATION = "bank_transfer_pending_reconciliation"
+    BANK_TRANSFER_DELAYED_BENEFICIARY_POSTING = (
+        "bank_transfer_delayed_beneficiary_posting"
+    )
+    BANK_TRANSFER_FAILED_RETURN = "bank_transfer_failed_return"
+    BANK_TRANSFER_HANDOFF = "bank_transfer_handoff"
+    BANK_TRANSFER_TOOL_FAILURE_HANDOFF = "bank_transfer_tool_failure_handoff"
 
 
 class GoldenTurn(StrictModel):
@@ -56,19 +63,24 @@ class GoldenTurn(StrictModel):
 class GoldenCase(StrictModel):
     """Expected behavior for one deterministic evaluation scenario.
 
-    This is synthetic data authored for this project. It describes the
-    expected boundary/action/outcome, not a real MoMo policy or customer case.
+    Synthetic cases describe routing behavior only. Source-backed cases use
+    the same schema but tie their expected outcome to a cited policy workflow;
+    neither kind contains real customer data.
     """
 
     schema_version: Literal[1] = 1
-    case_id: str = Field(pattern=r"^momo-golden-v1-[0-9]{3}$")
+    case_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]+$")
     language: Literal["vi"] = "vi"
-    source: Literal["human_authored_synthetic"] = "human_authored_synthetic"
+    source: Literal["human_authored_synthetic", "source_backed_policy"] = (
+        "human_authored_synthetic"
+    )
+    workflow: str | None = None
     turns: tuple[GoldenTurn, ...] = Field(min_length=1)
     expected_intent: IntentName
     expected_slots: dict[SlotName, str] = Field(default_factory=dict)
     expected_action: CaseAction
     expected_tool: ToolName | None = None
+    expected_lookup_tool: ToolName | None = None
     expected_status: CaseStatus
     expected_outcome: OutcomeName
     tags: tuple[str, ...] = Field(min_length=1)
@@ -92,6 +104,12 @@ class GoldenCase(StrictModel):
             raise ValueError("context/tool actions require expected_tool")
         if self.expected_action not in tool_actions and self.expected_tool is not None:
             raise ValueError("expected_tool is only valid for context/tool actions")
+
+        if self.expected_lookup_tool is not None and self.expected_lookup_tool not in {
+            ToolName.GET_TRANSACTION_STATUS,
+            ToolName.GET_REFUND_STATUS,
+        }:
+            raise ValueError("expected_lookup_tool must be a read-only lookup tool")
 
         if self.expected_action in tool_actions:
             missing_slots = set(contract.required_slots) - set(self.expected_slots)

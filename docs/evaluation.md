@@ -25,6 +25,18 @@ harness smoke test, not an LLM quality claim. The LLM adapter is intentionally
 not called in CI unless a key is supplied; its provider can be injected in
 unit tests.
 
+The first source-backed workflow has its own ten-case suite:
+
+```bash
+python -m momo_ops_agent.eval_runner \
+  --golden-set data/golden/bank_transfer_not_received_v1.jsonl \
+  --fixtures data/golden/fixtures.json
+```
+
+These cases grade the final action/status/outcome and the read-only lookup
+recorded in the trace. This keeps policy acceptance separate from the broader
+synthetic intent-routing baseline.
+
 LLM iteration uses `scripts/run_smoke_eval.py`, a fixed 12-case stratified
 gate covering missing-slot, retrieval, answer, ticket, handoff, and ambiguous
 routing behavior. The 60-case set is reserved for regression/release checks.

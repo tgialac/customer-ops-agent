@@ -12,16 +12,26 @@ from .contracts import (
     CaseAction,
     CaseState,
     CaseStatus,
+    ContextScope,
     ConversationMessage,
+    ContextSnapshot,
+    FundingSource,
     IntentName,
     IntentPrediction,
     MessageRole,
     SlotName,
+    TransactionSnapshot,
+    TransactionStatus,
     get_intent_contract,
 )
 from .evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
 from .mock_backend import MockBackend, ToolResult
 from .contracts import StrictModel
+from .policies import (
+    BankTransferPolicyInput,
+    evaluate_bank_transfer_policy,
+    render_bank_transfer_response,
+)
 
 
 class RouterDecision(StrictModel):
@@ -31,6 +41,7 @@ class RouterDecision(StrictModel):
     tool: ToolName | None = None
     tool_args: dict[str, str] = Field(default_factory=dict)
     policy_violation: str | None = None
+    policy_source: str | None = None
 
 
 class AgentDecision(RouterDecision):
@@ -123,9 +134,9 @@ class RuleBasedAgent:
             if turn.role is not GoldenTurnRole.CUSTOMER:
                 continue
             router_decision = self.decide(history)
-            decision = self.materialize_decision(router_decision, history)
-            state = self._apply_decision(state, decision)
-            tool_result = self._call_tool(decision, backend)
+            tool_result = self._call_tool(router_decision, backend)
+            decision = self.materialize_decision(router_decision, history, tool_result)
+            state = self._apply_decision(state, decision, tool_result, history)
             trace.append(
                 AgentTrace(
                     turn_index=turn_index,
@@ -202,11 +213,21 @@ class RuleBasedAgent:
         )
 
     def materialize_decision(
-        self, router_decision: RouterDecision, history: list[GoldenTurn]
+        self,
+        router_decision: RouterDecision,
+        history: list[GoldenTurn],
+        tool_result: ToolResult | None = None,
     ) -> AgentDecision:
         """Derive benchmark events and response handles outside the model."""
 
         intent = router_decision.intent.intent
+        if (
+            intent is IntentName.BANK_TRANSFER_NOT_RECEIVED
+            and router_decision.action is CaseAction.RETRIEVE_CONTEXT
+        ):
+            return self._materialize_bank_transfer_decision(
+                router_decision, history, tool_result
+            )
         if router_decision.policy_violation is not None:
             outcome = OutcomeName.POLICY_GUARDRAIL_HANDOFF
             response = "handoff"
@@ -244,6 +265,72 @@ class RuleBasedAgent:
             response=response,
         )
 
+    def _materialize_bank_transfer_decision(
+        self,
+        router_decision: RouterDecision,
+        history: list[GoldenTurn],
+        tool_result: ToolResult | None,
+    ) -> AgentDecision:
+        base = router_decision.model_dump(exclude={"policy_violation"})
+        if tool_result is None or not tool_result.success:
+            base.update(
+                action=CaseAction.HANDOFF,
+                tool=None,
+                tool_args={},
+                policy_source=None,
+            )
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.BANK_TRANSFER_TOOL_FAILURE_HANDOFF,
+                response="handoff",
+            )
+
+        data = tool_result.data
+        status = _parse_transaction_status(data.get("status"))
+        funding_source = _parse_funding_source(data.get("funding_source"))
+        policy = evaluate_bank_transfer_policy(
+            BankTransferPolicyInput(
+                transaction_id=data.get("transaction_id"),
+                status=status,
+                funding_source=funding_source,
+                elapsed_working_days=data.get("elapsed_working_days"),
+                return_elapsed_working_days=data.get("return_elapsed_working_days"),
+                wrong_details_reported=self._wrong_bank_details_reported(history),
+            )
+        )
+        base.update(tool=None, tool_args={}, policy_source=policy.source_document_id)
+        if policy.handoff_required:
+            base["action"] = CaseAction.HANDOFF
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.BANK_TRANSFER_HANDOFF,
+                response="handoff",
+            )
+
+        outcome_by_message = {
+            "pending_1_to_2_working_days": OutcomeName.BANK_TRANSFER_PENDING_RECONCILIATION,
+            "successful_transfer_1_to_3_working_days": (
+                OutcomeName.BANK_TRANSFER_DELAYED_BENEFICIARY_POSTING
+            ),
+            "failed_transfer_return_1_to_2_working_days": (
+                OutcomeName.BANK_TRANSFER_FAILED_RETURN
+            ),
+        }
+        outcome = outcome_by_message.get(policy.message_key)
+        if outcome is None:
+            base["action"] = CaseAction.HANDOFF
+            return AgentDecision(
+                **base,
+                outcome=OutcomeName.BANK_TRANSFER_HANDOFF,
+                response="handoff",
+            )
+        base["action"] = CaseAction.ANSWER
+        return AgentDecision(
+            **base,
+            outcome=outcome,
+            response=render_bank_transfer_response(policy),
+        )
+
     def _retrieve_outcome(self, text: str, tool: ToolName) -> str:
         if tool is ToolName.GET_REFUND_STATUS:
             return "retrieve_refund_status"
@@ -258,6 +345,23 @@ class RuleBasedAgent:
 
     def _detect_intent(self, text: str) -> IntentName:
         lowered = text.lower()
+        bank_transfer_markers = (
+            "chuyển khoản ngân hàng",
+            "tài khoản ngân hàng",
+            "ngân hàng người nhận",
+            "thẻ ngân hàng",
+            "bank account",
+        )
+        recipient_not_received_markers = (
+            "người nhận chưa nhận",
+            "người nhận chưa thấy",
+            "chưa nhận được tiền",
+            "chưa thấy tiền",
+        )
+        if any(marker in lowered for marker in bank_transfer_markers) and any(
+            marker in lowered for marker in recipient_not_received_markers
+        ):
+            return IntentName.BANK_TRANSFER_NOT_RECEIVED
         refund_markers = (
             "hoàn tiền",
             "tiền hoàn",
@@ -370,8 +474,26 @@ class RuleBasedAgent:
             return "explain_transaction_failed"
         return "answer_from_tool_result"
 
-    def _apply_decision(self, state: CaseState, decision: AgentDecision) -> CaseState:
+    def _apply_decision(
+        self,
+        state: CaseState,
+        decision: AgentDecision,
+        tool_result: ToolResult | None = None,
+        history: list[GoldenTurn] | None = None,
+    ) -> CaseState:
         state = state.accept_intent(decision.intent)
+        if (
+            tool_result is not None
+            and tool_result.success
+            and tool_result.tool_name is ToolName.GET_TRANSACTION_STATUS
+            and decision.intent.intent is not IntentName.UNKNOWN
+            and get_intent_contract(decision.intent.intent).allows_context(
+                ContextScope.TRANSACTION
+            )
+        ):
+            state = self._add_transaction_context(
+                state, tool_result, self._wrong_bank_details_reported(history or [])
+            )
         if state.status is CaseStatus.NEW:
             state = state.transition_to(CaseStatus.TRIAGING)
         if decision.action is CaseAction.ASK_CLARIFICATION:
@@ -382,9 +504,17 @@ class RuleBasedAgent:
         elif decision.action is CaseAction.ANSWER:
             if state.status is CaseStatus.WAITING_FOR_CUSTOMER:
                 state = state.transition_to(CaseStatus.IN_PROGRESS)
+            elif state.status is CaseStatus.TRIAGING:
+                state = state.transition_to(CaseStatus.IN_PROGRESS)
             if (
                 decision.outcome
-                not in {"explain_refund_processing", "explain_pending_status"}
+                not in {
+                    "explain_refund_processing",
+                    "explain_pending_status",
+                    OutcomeName.BANK_TRANSFER_PENDING_RECONCILIATION,
+                    OutcomeName.BANK_TRANSFER_DELAYED_BENEFICIARY_POSTING,
+                    OutcomeName.BANK_TRANSFER_FAILED_RETURN,
+                }
                 and (state.status is CaseStatus.TRIAGING or state.status is CaseStatus.IN_PROGRESS)
             ):
                 state = state.transition_to(CaseStatus.RESOLVED)
@@ -397,10 +527,59 @@ class RuleBasedAgent:
             ConversationMessage(role=MessageRole.AGENT, content=decision.response)
         )
 
-    def _call_tool(self, decision: AgentDecision, backend: MockBackend) -> ToolResult | None:
+    def _call_tool(self, decision: RouterDecision, backend: MockBackend) -> ToolResult | None:
         if decision.tool is None:
             return None
         return backend.execute(decision.tool, decision.tool_args)
+
+    def _add_transaction_context(
+        self, state: CaseState, tool_result: ToolResult, wrong_details_reported: bool
+    ) -> CaseState:
+        data = tool_result.data
+        try:
+            context = ContextSnapshot(
+                scopes=(ContextScope.TRANSACTION,),
+                transaction=TransactionSnapshot(
+                    transaction_id=str(data["transaction_id"]),
+                    status=TransactionStatus(str(data["status"])),
+                    amount_minor=int(data["amount_minor"]),
+                    currency=str(data["currency"]),
+                    funding_source=_parse_funding_source(data.get("funding_source")),
+                    elapsed_working_days=data.get("elapsed_working_days"),
+                    return_elapsed_working_days=data.get("return_elapsed_working_days"),
+                    wrong_details_reported=wrong_details_reported,
+                ),
+            )
+        except (KeyError, TypeError, ValueError):
+            return state
+        return state.with_context(context)
+
+    def _wrong_bank_details_reported(self, history: list[GoldenTurn]) -> bool:
+        text = " ".join(turn.text.lower() for turn in history)
+        return any(
+            marker in text
+            for marker in (
+                "chuyển nhầm",
+                "sai số tài khoản",
+                "sai thông tin tài khoản",
+                "nhầm tài khoản",
+                "nhầm ngân hàng",
+            )
+        )
+
+
+def _parse_transaction_status(value: object) -> TransactionStatus | None:
+    try:
+        return TransactionStatus(str(value)) if value is not None else None
+    except ValueError:
+        return None
+
+
+def _parse_funding_source(value: object) -> FundingSource:
+    try:
+        return FundingSource(str(value)) if value is not None else FundingSource.UNKNOWN
+    except ValueError:
+        return FundingSource.UNKNOWN
 
 
 DecisionProvider = Callable[[list[GoldenTurn]], RouterDecision]
@@ -469,6 +648,15 @@ class LLMAgent(RuleBasedAgent):
             action = CaseAction.HANDOFF
             tool = None
             tool_args = {}
+        elif intent is IntentName.BANK_TRANSFER_NOT_RECEIVED and action is CaseAction.ANSWER:
+            if SlotName.TRANSACTION_ID not in slots:
+                action = CaseAction.ASK_CLARIFICATION
+                tool = None
+                tool_args = {}
+            else:
+                action = CaseAction.RETRIEVE_CONTEXT
+                tool = ToolName.GET_TRANSACTION_STATUS
+                tool_args = {}
         elif (
             self._should_create_ticket(history[-1].text, intent)
             and SlotName.TRANSACTION_ID in slots
@@ -485,6 +673,7 @@ class LLMAgent(RuleBasedAgent):
             elif intent in {
                 IntentName.TRANSACTION_PENDING,
                 IntentName.TRANSACTION_FAILED,
+                IntentName.BANK_TRANSFER_NOT_RECEIVED,
             }:
                 tool = ToolName.GET_TRANSACTION_STATUS
 
@@ -519,6 +708,7 @@ class LLMAgent(RuleBasedAgent):
             tool=tool,
             tool_args=tool_args,
             policy_violation=decision.policy_violation,
+            policy_source=decision.policy_source,
         )
 
     def _validate_decision(self, decision: RouterDecision) -> None:
@@ -613,7 +803,7 @@ _LLM_SYSTEM_INSTRUCTIONS = """You are the decision router for a Vietnamese finte
 
 Use the conversation to produce exactly one typed RouterDecision. Classify only
 the supported intents: missing_refund, transaction_pending,
-transaction_failed, or unknown. Extract only explicit demo transaction/refund
+transaction_failed, bank_transfer_not_received, or unknown. Extract only explicit demo transaction/refund
 IDs; never invent an ID. For a clear supported request, set confidence at or
 above 0.90; use lower confidence only when the intent is genuinely ambiguous.
 
@@ -621,6 +811,7 @@ Routing policy:
 - missing_refund + transaction ID -> retrieve_context + get_refund_status
 - transaction_pending + transaction ID -> retrieve_context + get_transaction_status
 - transaction_failed + transaction ID -> retrieve_context + get_transaction_status
+- bank_transfer_not_received + transaction ID -> retrieve_context + get_transaction_status
 - missing transaction ID -> ask_clarification, with no tool
 - explicit human/manual-support request -> handoff, with no tool
 - prior system result followed by a customer question -> answer, with no tool

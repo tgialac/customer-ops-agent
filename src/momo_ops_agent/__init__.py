@@ -12,6 +12,7 @@ from .contracts import (
     IntentName,
     IntentPrediction,
     RiskLevel,
+    FundingSource,
     get_intent_contract,
 )
 from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
@@ -36,8 +37,8 @@ from .policies import (
     BankTransferPolicyAction,
     BankTransferPolicyDecision,
     BankTransferPolicyInput,
-    FundingSource,
     evaluate_bank_transfer_policy,
+    render_bank_transfer_response,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "IntentName",
     "IntentPrediction",
     "RiskLevel",
+    "FundingSource",
     "get_intent_contract",
     "GoldenCase",
     "GoldenTurn",
@@ -79,6 +81,6 @@ __all__ = [
     "BankTransferPolicyAction",
     "BankTransferPolicyDecision",
     "BankTransferPolicyInput",
-    "FundingSource",
     "evaluate_bank_transfer_policy",
+    "render_bank_transfer_response",
 ]

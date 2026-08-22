@@ -63,11 +63,18 @@ class RiskLevel(str, Enum):
     CRITICAL = "critical"
 
 
+class FundingSource(str, Enum):
+    WALLET = "wallet"
+    LINKED_BANK = "linked_bank"
+    UNKNOWN = "unknown"
+
+
 class IntentName(str, Enum):
     UNKNOWN = "unknown"
     MISSING_REFUND = "missing_refund"
     TRANSACTION_PENDING = "transaction_pending"
     TRANSACTION_FAILED = "transaction_failed"
+    BANK_TRANSFER_NOT_RECEIVED = "bank_transfer_not_received"
 
 
 class ContextScope(str, Enum):
@@ -204,6 +211,17 @@ INTENT_CATALOG: Mapping[IntentName, IntentContract] = {
         allowed_actions=_COMMON_SUPPORT_ACTIONS,
         risk_level=RiskLevel.MEDIUM,
     ),
+    IntentName.BANK_TRANSFER_NOT_RECEIVED: IntentContract(
+        intent=IntentName.BANK_TRANSFER_NOT_RECEIVED,
+        description=(
+            "A customer says a MoMo-to-bank transfer was debited but the "
+            "beneficiary has not received the money."
+        ),
+        required_slots=(SlotName.TRANSACTION_ID,),
+        allowed_context=(ContextScope.TRANSACTION,),
+        allowed_actions=_COMMON_SUPPORT_ACTIONS,
+        risk_level=RiskLevel.MEDIUM,
+    ),
 }
 
 
@@ -217,6 +235,10 @@ class TransactionSnapshot(StrictModel):
     amount_minor: int = Field(ge=0)
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     occurred_at: datetime | None = None
+    funding_source: FundingSource = FundingSource.UNKNOWN
+    elapsed_working_days: int | None = Field(default=None, ge=0)
+    return_elapsed_working_days: int | None = Field(default=None, ge=0)
+    wrong_details_reported: bool = False
 
 
 class RefundSnapshot(StrictModel):

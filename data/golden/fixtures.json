@@ -11,6 +11,13 @@
     "transaction_failed": {
       "status": "failed",
       "refund_status": null
+    },
+    "bank_transfer_not_received": {
+      "status": "pending",
+      "refund_status": null,
+      "funding_source": "wallet",
+      "elapsed_working_days": 1,
+      "return_elapsed_working_days": null
     }
   },
   "overrides": {
@@ -21,6 +28,41 @@
     "momo-golden-v1-039": {"status": "completed"},
     "momo-golden-v1-047": {"status": "failed"},
     "momo-golden-v1-050": {"status": "failed"},
-    "momo-golden-v1-056": {"status": "failed"}
+    "momo-golden-v1-056": {"status": "failed"},
+    "bank-transfer-v1-003": {
+      "status": "pending",
+      "elapsed_working_days": 3
+    },
+    "bank-transfer-v1-004": {
+      "status": "completed",
+      "elapsed_working_days": 2
+    },
+    "bank-transfer-v1-005": {
+      "status": "completed",
+      "elapsed_working_days": 4
+    },
+    "bank-transfer-v1-006": {
+      "status": "failed",
+      "funding_source": "wallet",
+      "return_elapsed_working_days": 1
+    },
+    "bank-transfer-v1-007": {
+      "status": "failed",
+      "funding_source": "linked_bank",
+      "return_elapsed_working_days": 3
+    },
+    "bank-transfer-v1-008": {
+      "status": "pending",
+      "elapsed_working_days": 1
+    },
+    "bank-transfer-v1-009": {
+      "status": "completed",
+      "elapsed_working_days": 3
+    },
+    "bank-transfer-v1-010": {
+      "status": "reversed",
+      "funding_source": "wallet",
+      "return_elapsed_working_days": 2
+    }
   }
 }

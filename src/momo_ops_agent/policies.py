@@ -6,16 +6,10 @@ from enum import Enum
 
 from pydantic import Field
 
-from .contracts import StrictModel, TransactionStatus
+from .contracts import FundingSource, StrictModel, TransactionStatus
 
 
 BANK_TRANSFER_POLICY_SOURCE = "momo-faq-bank-transfer-reversal-2026-08-22"
-
-
-class FundingSource(str, Enum):
-    WALLET = "wallet"
-    LINKED_BANK = "linked_bank"
-    UNKNOWN = "unknown"
 
 
 class BankTransferPolicyAction(str, Enum):
@@ -41,6 +35,41 @@ class BankTransferPolicyDecision(StrictModel):
     message_key: str
     handoff_required: bool = False
     return_destination: str | None = None
+
+
+def render_bank_transfer_response(decision: BankTransferPolicyDecision) -> str:
+    """Render only the approved source-backed answer variants."""
+
+    messages = {
+        "pending_1_to_2_working_days": (
+            "Giao dịch đang được đối soát. Vui lòng chờ 1–2 ngày làm việc; "
+            "nếu sau thời gian này vẫn chưa có kết quả, bộ phận hỗ trợ sẽ kiểm tra thêm."
+        ),
+        "successful_transfer_1_to_3_working_days": (
+            "Giao dịch đã thành công nhưng ngân hàng người nhận có thể cần "
+            "1–3 ngày làm việc để ghi nhận. Nếu quá thời gian này vẫn chưa nhận được tiền, "
+            "bộ phận hỗ trợ sẽ kiểm tra thêm."
+        ),
+        "failed_transfer_return_1_to_2_working_days": (
+            "Giao dịch không thành công. Tiền sẽ được hoàn về "
+            f"{_return_destination_label(decision.return_destination)} trong khoảng 1–2 "
+            "ngày làm việc."
+        ),
+    }
+    try:
+        return messages[decision.message_key]
+    except KeyError as exc:
+        raise ValueError(
+            f"no customer-facing response is approved for {decision.message_key}"
+        ) from exc
+
+
+def _return_destination_label(destination: str | None) -> str:
+    return {
+        "momo_wallet": "ví MoMo",
+        "linked_bank": "tài khoản ngân hàng đã liên kết",
+        "original_funding_source": "nguồn tiền ban đầu",
+    }.get(destination or "", "nguồn tiền ban đầu")
 
 
 def evaluate_bank_transfer_policy(

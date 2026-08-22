@@ -6,7 +6,7 @@ from typing import Any, Iterable, Mapping
 
 from pydantic import Field
 
-from .contracts import RefundStatus, StrictModel, TransactionStatus
+from .contracts import FundingSource, RefundStatus, StrictModel, TransactionStatus
 from .evaluation import ToolName
 
 
@@ -18,6 +18,9 @@ class TransactionRecord(StrictModel):
     refund_id: str | None = None
     refund_status: RefundStatus | None = None
     ticket_id: str | None = None
+    funding_source: FundingSource = FundingSource.UNKNOWN
+    elapsed_working_days: int | None = Field(default=None, ge=0)
+    return_elapsed_working_days: int | None = Field(default=None, ge=0)
 
 
 class ToolResult(StrictModel):
@@ -54,6 +57,9 @@ class MockBackend:
                 "status": record.status.value,
                 "amount_minor": record.amount_minor,
                 "currency": record.currency,
+                "funding_source": record.funding_source.value,
+                "elapsed_working_days": record.elapsed_working_days,
+                "return_elapsed_working_days": record.return_elapsed_working_days,
             },
             state_version=self._state_version,
         )

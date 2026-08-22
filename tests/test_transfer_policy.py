@@ -8,6 +8,7 @@ from momo_ops_agent.policies import (
     BankTransferPolicyInput,
     FundingSource,
     evaluate_bank_transfer_policy,
+    render_bank_transfer_response,
 )
 
 
@@ -121,3 +122,20 @@ def test_wrong_details_are_support_recovery_not_automatic_refund() -> None:
 
     assert decision.action is BankTransferPolicyAction.HANDOFF
     assert decision.message_key == "wrong_details_need_support_recovery"
+
+
+def test_source_backed_response_renderer_has_bounded_wording() -> None:
+    decision = evaluate_bank_transfer_policy(
+        BankTransferPolicyInput(
+            transaction_id="txn_demo_208",
+            status=TransactionStatus.FAILED,
+            funding_source=FundingSource.LINKED_BANK,
+            return_elapsed_working_days=1,
+        )
+    )
+
+    response = render_bank_transfer_response(decision)
+
+    assert "1–2 ngày làm việc" in response
+    assert "tài khoản ngân hàng đã liên kết" in response
+    assert "hoàn" in response

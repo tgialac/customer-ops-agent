@@ -42,7 +42,15 @@ thresholds, not guaranteed settlement times: a pending transfer is only
 explained within 2 working days, a successful transfer with delayed posting
 within 3 working days, and a failed transfer return within 2 working days.
 Missing timing data does not create a new promise; an unknown state or an
-overdue case goes to support.
+overdue case goes to support. The runtime calls the transaction-status tool
+first, stores only the intent-approved transaction context, and renders one of
+the bounded Vietnamese response templates from the policy decision. A failed
+lookup also hands off without answering from incomplete facts.
+
+The source-backed regression suite is
+`data/golden/bank_transfer_not_received_v1.jsonl`; unlike the 60-case
+synthetic baseline, its expected outcomes are tied to this workflow's cited
+MoMo policy boundaries.
 
 Sources:
 

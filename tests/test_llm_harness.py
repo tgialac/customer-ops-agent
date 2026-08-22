@@ -156,6 +156,43 @@ def test_router_normalization_canonicalizes_explicit_intent_and_id() -> None:
     assert run.trace[0].tool_result.success is True
 
 
+def test_source_workflow_cannot_answer_before_transaction_lookup() -> None:
+    def provider(_: list[GoldenTurn]) -> RouterDecision:
+        return RouterDecision(
+            intent=IntentPrediction(
+                intent=IntentName.BANK_TRANSFER_NOT_RECEIVED,
+                confidence=0.99,
+                source="classifier",
+            ),
+            action=CaseAction.ANSWER,
+        )
+
+    transaction_id = "txn_demo_072"
+    run = LLMAgent(provider).run(
+        "llm-bank-transfer-001",
+        [
+            GoldenTurn(
+                role=GoldenTurnRole.CUSTOMER,
+                text=f"Chuyển khoản ngân hàng, người nhận chưa thấy tiền, mã {transaction_id}.",
+            )
+        ],
+        MockBackend(
+            [
+                TransactionRecord(
+                    transaction_id=transaction_id,
+                    status=TransactionStatus.PENDING,
+                    elapsed_working_days=1,
+                )
+            ]
+        ),
+    )
+
+    assert run.final_decision.action is CaseAction.ANSWER
+    assert run.final_decision.outcome == "bank_transfer_pending_reconciliation"
+    assert run.trace[0].tool_result is not None
+    assert run.trace[0].tool_result.tool_name is ToolName.GET_TRANSACTION_STATUS
+
+
 def test_injected_decision_provider_uses_the_same_evaluator() -> None:
     baseline = RuleBasedAgent()
     summary = run_evaluation(
