@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from momo_ops_agent.agent_harness import AgentDecision, LLMAgent, RuleBasedAgent
+from momo_ops_agent.agent_harness import (
+    AgentDecision,
+    LLMDecisionPayload,
+    LLMAgent,
+    RuleBasedAgent,
+)
 from momo_ops_agent.contracts import (
     CaseAction,
     CaseStatus,
@@ -47,6 +52,29 @@ def test_injected_llm_decision_runs_through_stateful_backend() -> None:
     assert run.trace[0].tool_result is not None
     assert run.trace[0].tool_result.data["status"] == "pending"
     assert run.case_state.status is CaseStatus.IN_PROGRESS
+
+
+def test_openai_wire_schema_avoids_dynamic_property_names() -> None:
+    schema = LLMDecisionPayload.model_json_schema()
+
+    assert "propertyNames" not in str(schema)
+    payload = LLMDecisionPayload(
+        intent=IntentPrediction(
+            intent=IntentName.TRANSACTION_PENDING,
+            confidence=0.96,
+            source="classifier",
+        ),
+        transaction_id="txn_demo_101",
+        action=CaseAction.RETRIEVE_CONTEXT,
+        tool=ToolName.GET_TRANSACTION_STATUS,
+        tool_transaction_id="txn_demo_101",
+        outcome="retrieve_transaction_status",
+        response="Mình đang kiểm tra giao dịch.",
+    )
+    decision = payload.to_decision()
+
+    assert decision.slots[SlotName.TRANSACTION_ID] == "txn_demo_101"
+    assert decision.tool_args["transaction_id"] == "txn_demo_101"
 
 
 def test_semantic_contract_violation_becomes_safe_handoff() -> None:

@@ -14,7 +14,7 @@ from .contracts import (
     RiskLevel,
     get_intent_contract,
 )
-from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, ToolName
+from .evaluation import GoldenCase, GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
 from .agent_harness import AgentDecision, AgentHarness, AgentRun, LLMAgent, RuleBasedAgent
 from .mock_backend import MockBackend, ToolResult, TransactionRecord
 
@@ -35,6 +35,7 @@ __all__ = [
     "GoldenTurn",
     "GoldenTurnRole",
     "ToolName",
+    "OutcomeName",
     "AgentDecision",
     "AgentHarness",
     "AgentRun",

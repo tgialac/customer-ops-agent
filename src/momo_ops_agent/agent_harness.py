@@ -19,7 +19,7 @@ from .contracts import (
     SlotName,
     get_intent_contract,
 )
-from .evaluation import GoldenTurn, GoldenTurnRole, ToolName
+from .evaluation import GoldenTurn, GoldenTurnRole, OutcomeName, ToolName
 from .mock_backend import MockBackend, ToolResult
 from .contracts import StrictModel
 
@@ -30,8 +30,45 @@ class AgentDecision(StrictModel):
     action: CaseAction
     tool: ToolName | None = None
     tool_args: dict[str, str] = Field(default_factory=dict)
-    outcome: str
+    outcome: OutcomeName
     response: str
+
+
+class LLMDecisionPayload(StrictModel):
+    """OpenAI-compatible wire schema with fixed fields instead of enum-keyed maps."""
+
+    intent: IntentPrediction
+    transaction_id: str | None = None
+    refund_id: str | None = None
+    action: CaseAction
+    tool: ToolName | None = None
+    tool_transaction_id: str | None = None
+    tool_reason: str | None = None
+    outcome: OutcomeName
+    response: str
+
+    def to_decision(self) -> AgentDecision:
+        slots: dict[SlotName, str] = {}
+        if self.transaction_id is not None:
+            slots[SlotName.TRANSACTION_ID] = self.transaction_id
+        if self.refund_id is not None:
+            slots[SlotName.REFUND_ID] = self.refund_id
+
+        tool_args: dict[str, str] = {}
+        if self.tool_transaction_id is not None:
+            tool_args["transaction_id"] = self.tool_transaction_id
+        if self.tool_reason is not None:
+            tool_args["reason"] = self.tool_reason
+
+        return AgentDecision(
+            intent=self.intent,
+            slots=slots,
+            action=self.action,
+            tool=self.tool,
+            tool_args=tool_args,
+            outcome=self.outcome,
+            response=self.response,
+        )
 
 
 class AgentTrace(StrictModel):
@@ -402,7 +439,7 @@ class LLMAgent(RuleBasedAgent):
         return AgentDecision(
             intent=IntentPrediction(intent=IntentName.UNKNOWN, confidence=1.0, source="classifier"),
             action=CaseAction.HANDOFF,
-            outcome="policy_guardrail_handoff",
+            outcome=OutcomeName.POLICY_GUARDRAIL_HANDOFF,
             response="handoff",
         )
 
@@ -437,12 +474,12 @@ class LLMAgent(RuleBasedAgent):
             response = client.responses.parse(
                 model=selected_model,
                 input=input_messages,
-                text_format=AgentDecision,
+                text_format=LLMDecisionPayload,
             )
             parsed = response.output_parsed
             if parsed is None:
-                raise ValueError("OpenAI returned no structured AgentDecision")
-            return parsed
+                raise ValueError("OpenAI returned no structured LLMDecisionPayload")
+            return parsed.to_decision()
 
         return cls(provider)
 

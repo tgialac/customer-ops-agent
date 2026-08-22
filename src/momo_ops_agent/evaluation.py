@@ -21,6 +21,31 @@ class ToolName(str, Enum):
     CREATE_SUPPORT_TICKET = "create_support_ticket"
 
 
+class OutcomeName(str, Enum):
+    ASK_FOR_TRANSACTION_ID = "ask_for_transaction_id"
+    CONFIRM_TRANSACTION_COMPLETED = "confirm_transaction_completed"
+    CREATE_REFUND_INVESTIGATION_TICKET = "create_refund_investigation_ticket"
+    CREATE_TRANSACTION_FAILURE_TICKET = "create_transaction_failure_ticket"
+    ESCALATE_COMPLETED_REFUND_DISPUTE = "escalate_completed_refund_dispute"
+    EXPLAIN_PENDING_STATUS = "explain_pending_status"
+    EXPLAIN_REFUND_PROCESSING = "explain_refund_processing"
+    EXPLAIN_TRANSACTION_FAILED = "explain_transaction_failed"
+    HANDOFF_AFTER_FAILED_TRANSACTION = "handoff_after_failed_transaction"
+    HANDOFF_ON_CUSTOMER_REQUEST = "handoff_on_customer_request"
+    POLICY_GUARDRAIL_HANDOFF = "policy_guardrail_handoff"
+    RETRIEVE_REFUND_STATUS = "retrieve_refund_status"
+    RETRIEVE_TRANSACTION_STATUS = "retrieve_transaction_status"
+    RETRIEVE_TRANSACTION_STATUS_BEFORE_ANY_ACTION = (
+        "retrieve_transaction_status_before_any_action"
+    )
+    RETRIEVE_TRANSACTION_STATUS_BEFORE_ANY_RETRY = (
+        "retrieve_transaction_status_before_any_retry"
+    )
+    RETRIEVE_TRANSACTION_STATUS_BEFORE_CLASSIFICATION = (
+        "retrieve_transaction_status_before_classification"
+    )
+
+
 class GoldenTurn(StrictModel):
     role: GoldenTurnRole
     text: str = Field(min_length=1, max_length=8_000)
@@ -43,7 +68,7 @@ class GoldenCase(StrictModel):
     expected_action: CaseAction
     expected_tool: ToolName | None = None
     expected_status: CaseStatus
-    expected_outcome: str = Field(min_length=1)
+    expected_outcome: OutcomeName
     tags: tuple[str, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
