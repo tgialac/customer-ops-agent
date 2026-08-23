@@ -32,3 +32,16 @@ Show the evolving plan for a representative conversation:
 ```bash
 uv run python scripts/run_process_demo.py
 ```
+
+## User simulation
+
+`run_simulated_cashback_process` feeds each generated customer message into a
+single process session, then gives the resulting customer-facing agent answer
+back to the simulator on the next turn. `ScriptedUserSimulator` is used for
+deterministic CI and failure reproduction. `LLMUserSimulator` uses structured
+output and an explicit goal, but the goal is kept outside the agent's context;
+the model under test only sees the simulated conversation.
+
+The LLM simulator is an optional experiment harness, not a production customer
+model. Its outputs still go through the same input guardrails, policy engine,
+tool allowlist, and workflow state grader.

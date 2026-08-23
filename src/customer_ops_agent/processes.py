@@ -99,6 +99,83 @@ class WorkflowRun(StrictModel):
         return self.traces[-1]
 
 
+class CashbackProcessSession:
+    """Mutable orchestration session used by interactive/user-simulated runs."""
+
+    def __init__(
+        self,
+        case_id: str,
+        backend: MockBackend,
+        *,
+        agent: RuleBasedAgent | None = None,
+        process_path: Path | None = None,
+    ) -> None:
+        definition = load_process(
+            process_path or _default_cashback_process_path()
+        )
+        if definition.entry_intent is not IntentName.MISSING_REFUND:
+            raise ValueError("cashback process must enter through missing_refund")
+        self.case_id = case_id
+        self.workflow = definition.workflow
+        self.backend = backend
+        self.agent = agent or RuleBasedAgent()
+        self.state = CaseState(customer_ref=f"process_{case_id}")
+        self.plan = WorkflowPlan.from_definition(definition)
+        self.history: list[GoldenTurn] = []
+        self.traces: list[ProcessTurnTrace] = []
+        self.status = ProcessRunStatus.IN_PROGRESS
+
+    def process_customer_message(self, message: str) -> ProcessTurnTrace:
+        turn = GoldenTurn(role=GoldenTurnRole.CUSTOMER, text=message)
+        self.history.append(turn)
+        self.state, agent_trace = self.agent.run_turn(
+            self.state,
+            self.history,
+            len(self.traces),
+            self.backend,
+        )
+        plan_before = self.plan
+        self.plan, self.status = _advance_plan(
+            self.plan, self.status, agent_trace
+        )
+        process_trace = ProcessTurnTrace(
+            turn_index=len(self.traces),
+            customer_message=message,
+            agent_response=agent_trace.decision.customer_response,
+            action=agent_trace.decision.action.value,
+            outcome=agent_trace.decision.outcome.value,
+            tool_sequence=(
+                (agent_trace.tool_result.tool_name,)
+                if agent_trace.tool_result is not None
+                else ()
+            ),
+            plan_before=plan_before,
+            plan_after=self.plan,
+        )
+        self.traces.append(process_trace)
+        if agent_trace.decision.customer_response:
+            self.history.append(
+                GoldenTurn(
+                    role=GoldenTurnRole.AGENT,
+                    text=agent_trace.decision.customer_response,
+                )
+            )
+        return process_trace
+
+    def result(self) -> WorkflowRun:
+        if not self.traces:
+            raise ValueError("cashback process requires at least one customer message")
+        return WorkflowRun(
+            case_id=self.case_id,
+            workflow=self.workflow,
+            status=self.status,
+            case_state=self.state,
+            plan=self.plan,
+            traces=tuple(self.traces),
+            backend_snapshot=self.backend.snapshot(),
+        )
+
+
 class WorkflowExpectation(StrictModel):
     final_process_status: ProcessRunStatus
     final_case_status: CaseStatus
@@ -211,59 +288,15 @@ def run_cashback_process(
 ) -> WorkflowRun:
     """Run the cashback process while preserving state across customer turns."""
 
-    definition_path = process_path or _default_cashback_process_path()
-    definition = load_process(definition_path)
-    if definition.entry_intent is not IntentName.MISSING_REFUND:
-        raise ValueError("cashback process must enter through missing_refund")
-
-    harness = agent or RuleBasedAgent()
-    state = CaseState(customer_ref=f"process_{case_id}")
-    plan = WorkflowPlan.from_definition(definition)
-    history: list[GoldenTurn] = []
-    traces: list[ProcessTurnTrace] = []
-    status = ProcessRunStatus.IN_PROGRESS
-
-    for turn_index, message in enumerate(customer_messages):
-        turn = GoldenTurn(role=GoldenTurnRole.CUSTOMER, text=message)
-        history.append(turn)
-        state, agent_trace = harness.run_turn(state, history, turn_index, backend)
-        plan_before = plan
-        plan, status = _advance_plan(plan, status, agent_trace)
-        traces.append(
-            ProcessTurnTrace(
-                turn_index=turn_index,
-                customer_message=message,
-                agent_response=agent_trace.decision.customer_response,
-                action=agent_trace.decision.action.value,
-                outcome=agent_trace.decision.outcome.value,
-                tool_sequence=(
-                    (agent_trace.tool_result.tool_name,)
-                    if agent_trace.tool_result is not None
-                    else ()
-                ),
-                plan_before=plan_before,
-                plan_after=plan,
-            )
-        )
-        if agent_trace.decision.customer_response:
-            history.append(
-                GoldenTurn(
-                    role=GoldenTurnRole.AGENT,
-                    text=agent_trace.decision.customer_response,
-                )
-            )
-
-    if not traces:
-        raise ValueError("cashback process requires at least one customer message")
-    return WorkflowRun(
-        case_id=case_id,
-        workflow=definition.workflow,
-        status=status,
-        case_state=state,
-        plan=plan,
-        traces=tuple(traces),
-        backend_snapshot=backend.snapshot(),
+    session = CashbackProcessSession(
+        case_id,
+        backend,
+        agent=agent,
+        process_path=process_path,
     )
+    for message in customer_messages:
+        session.process_customer_message(message)
+    return session.result()
 
 
 def grade_workflow_run(

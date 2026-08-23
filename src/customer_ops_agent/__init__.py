@@ -79,6 +79,16 @@ from .processes import (
     run_cashback_process,
     run_cashback_process_evaluation,
 )
+from .simulator import (
+    LLMUserSimulator,
+    ScriptedUserSimulator,
+    SimulatedProcessRun,
+    SimulationTurn,
+    UserSimulationGoal,
+    UserSimulationRequest,
+    UserSimulationResponse,
+    run_simulated_cashback_process,
+)
 
 __all__ = [
     "ACTIONS",
@@ -160,4 +170,12 @@ __all__ = [
     "load_process",
     "run_cashback_process",
     "run_cashback_process_evaluation",
+    "LLMUserSimulator",
+    "ScriptedUserSimulator",
+    "SimulatedProcessRun",
+    "SimulationTurn",
+    "UserSimulationGoal",
+    "UserSimulationRequest",
+    "UserSimulationResponse",
+    "run_simulated_cashback_process",
 ]

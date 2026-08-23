@@ -119,7 +119,7 @@ considered release-ready.
 
 The current offline results are:
 
-- `77/77` unit and integration tests;
+- `79/79` unit and integration tests;
 - `103/103` cases in the unified release gate;
 - `60` synthetic routing cases;
 - `33` source-backed and boundary cases;
@@ -139,6 +139,19 @@ Run the multi-turn cashback process demo:
 
 ```bash
 uv run python scripts/run_process_demo.py
+```
+
+Run it with a deterministic user simulator:
+
+```bash
+uv run python scripts/run_simulated_process.py
+```
+
+Use the optional structured-output LLM simulator with:
+
+```bash
+uv run --env-file .env --extra openai python scripts/run_simulated_process.py \
+  --simulator openai --model gpt-5.6
 ```
 
 Run all tests:
@@ -207,10 +220,12 @@ preceding safety and evaluation layer is working.
 - the workflow plan records completed and active steps with evidence;
 - ticket creation is stateful and idempotent;
 - process evals grade tool sequence, final case state, and backend audit state.
+- scripted and optional structured-output LLM user simulators replay adaptive
+  multi-turn conversations against one persistent process session.
 
-The next process-orchestration increment is an LLM-grounded user simulator and
-more state-changing workflows. The current process runner intentionally keeps
-financial mutations out of scope.
+The current process runner intentionally keeps financial mutations out of
+scope. The next increment is to use simulator failures to expand the reviewed
+golden set and to migrate a second operational workflow.
 
 ### Phase 4 — Shadow and controlled pilot
 
@@ -227,6 +242,27 @@ financial mutations out of scope.
 - expand tools only when the simulated environment and end-to-end evals are
   ready;
 - keep sensitive, ambiguous, or low-confidence cases with human specialists.
+
+## Next implementation queue
+
+The following order keeps new capability behind evidence, authorization, and
+state validation:
+
+1. Complete domain review for the flagship answer pack; turn every rejected
+   answer into a regression case and publish handoff/acceptance metrics.
+2. Expand simulated conversations to cover interruptions, contradictory facts,
+   repeated requests, tool failures, stale state, and resumed handoffs.
+3. Migrate `bank_transfer_not_received` to the executable process framework,
+   including reconciliation follow-up and return-destination checks.
+4. Add authenticated, read-only adapters behind explicit context scopes and
+   PII redaction; keep the offline simulator as the contract test environment.
+5. Add an authorized transaction-ledger domain for deterministic spending
+   summaries, category trends, and budget observations. The model may explain
+   verified aggregates but may not calculate or invent financial facts.
+6. Add trace export, latency/cost metrics, sampled QA, incident procedures,
+   rollback, and shadow-mode deployment before any direct customer output.
+7. Add confirmed, idempotent customer actions only after the corresponding
+   read-only workflow has stable evaluations and human approval.
 
 ## Repository map
 
