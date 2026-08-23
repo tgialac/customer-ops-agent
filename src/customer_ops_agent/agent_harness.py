@@ -167,85 +167,10 @@ class RuleBasedAgent:
             history.append(turn)
             if turn.role is not GoldenTurnRole.CUSTOMER:
                 continue
-            input_guardrail = check_input(turn.text)
-            if input_guardrail.passed:
-                router_decision = self.decide(history)
-                tool_result = self._call_tool(router_decision, backend)
-                decision = self.materialize_decision(router_decision, history, tool_result)
-            else:
-                router_decision = RouterDecision(
-                    intent=IntentPrediction(
-                        intent=IntentName.UNKNOWN,
-                        confidence=1.0,
-                        source="rule",
-                    ),
-                    action=CaseAction.HANDOFF,
-                    policy_violation=(
-                        f"input_guardrail:{input_guardrail.reason or 'rejected'}"
-                    ),
-                )
-                tool_result = None
-                decision = self.materialize_decision(router_decision, history)
-            answer_generation_attempts = 0
-            if (
-                self._answerer is not None
-                and decision.action is CaseAction.ANSWER
-                and decision.policy_message_key is not None
-                and decision.policy_source is not None
-            ):
-                decision, answer_generation_attempts = self._generate_answer(
-                    decision, turn.text
-                )
-            output_guardrail = check_output(
-                intent=decision.intent.intent,
-                action=decision.action,
-                response=decision.response,
-                policy_source=decision.policy_source,
-                policy_message_key=decision.policy_message_key,
-                return_destination=decision.policy_return_destination,
+            state, customer_trace = self.run_turn(
+                state, history, turn_index, backend
             )
-            if not output_guardrail.passed:
-                if (
-                    self._answerer is not None
-                    and decision.action is CaseAction.ANSWER
-                    and decision.policy_message_key is not None
-                    and decision.policy_source is not None
-                ):
-                    decision, attempts = self._generate_answer(
-                        decision, turn.text, previous_response=decision.response
-                    )
-                    answer_generation_attempts += attempts
-                    output_guardrail = check_output(
-                        intent=decision.intent.intent,
-                        action=decision.action,
-                        response=decision.response,
-                        policy_source=decision.policy_source,
-                        policy_message_key=decision.policy_message_key,
-                        return_destination=decision.policy_return_destination,
-                    )
-                if not output_guardrail.passed:
-                    decision = self._output_guardrail_handoff(
-                        decision, output_guardrail.reason or "rejected"
-                    )
-            state = self._apply_decision(
-                state,
-                decision,
-                tool_result,
-                history,
-                input_guardrail,
-                output_guardrail,
-            )
-            trace.append(
-                AgentTrace(
-                    turn_index=turn_index,
-                    customer_text=turn.text,
-                    decision=decision,
-                    tool_result=tool_result,
-                    input_guardrail=input_guardrail,
-                    output_guardrail=output_guardrail,
-                    answer_generation_attempts=answer_generation_attempts,
-                )
-            )
+            trace.append(customer_trace)
 
         if not trace:
             raise ValueError(f"case {case_id} has no customer turn")
@@ -254,6 +179,107 @@ class RuleBasedAgent:
             trace=tuple(trace),
             final_decision=trace[-1].decision,
             backend_snapshot=backend.snapshot(),
+        )
+
+    def run_turn(
+        self,
+        state: CaseState,
+        history: list[GoldenTurn],
+        turn_index: int,
+        backend: MockBackend,
+    ) -> tuple[CaseState, AgentTrace]:
+        """Process one customer turn against an existing case and backend.
+
+        ``run`` remains the compatibility entry point for golden-set replay.
+        Workflow runners use this method to preserve state across turns while
+        reusing the same guardrails, policy materialization, and tool boundary.
+        """
+
+        turn = history[-1]
+        if turn.role is not GoldenTurnRole.CUSTOMER:
+            raise ValueError("run_turn requires the latest turn to be a customer message")
+
+        input_guardrail = check_input(turn.text)
+        if input_guardrail.passed:
+            router_decision = self.decide(history)
+            tool_result = self._call_tool(router_decision, backend)
+            decision = self.materialize_decision(router_decision, history, tool_result)
+        else:
+            router_decision = RouterDecision(
+                intent=IntentPrediction(
+                    intent=IntentName.UNKNOWN,
+                    confidence=1.0,
+                    source="rule",
+                ),
+                action=CaseAction.HANDOFF,
+                policy_violation=(
+                    f"input_guardrail:{input_guardrail.reason or 'rejected'}"
+                ),
+            )
+            tool_result = None
+            decision = self.materialize_decision(router_decision, history)
+
+        answer_generation_attempts = 0
+        if (
+            self._answerer is not None
+            and decision.action is CaseAction.ANSWER
+            and decision.policy_message_key is not None
+            and decision.policy_source is not None
+        ):
+            decision, answer_generation_attempts = self._generate_answer(
+                decision, turn.text
+            )
+        output_guardrail = check_output(
+            intent=decision.intent.intent,
+            action=decision.action,
+            response=decision.response,
+            policy_source=decision.policy_source,
+            policy_message_key=decision.policy_message_key,
+            return_destination=decision.policy_return_destination,
+        )
+        if not output_guardrail.passed:
+            if (
+                self._answerer is not None
+                and decision.action is CaseAction.ANSWER
+                and decision.policy_message_key is not None
+                and decision.policy_source is not None
+            ):
+                decision, attempts = self._generate_answer(
+                    decision, turn.text, previous_response=decision.response
+                )
+                answer_generation_attempts += attempts
+                output_guardrail = check_output(
+                    intent=decision.intent.intent,
+                    action=decision.action,
+                    response=decision.response,
+                    policy_source=decision.policy_source,
+                    policy_message_key=decision.policy_message_key,
+                    return_destination=decision.policy_return_destination,
+                )
+            if not output_guardrail.passed:
+                decision = self._output_guardrail_handoff(
+                    decision, output_guardrail.reason or "rejected"
+                )
+
+        state = state.add_message(
+            ConversationMessage(role=MessageRole.CUSTOMER, content=turn.text)
+        )
+        state = self._apply_decision(
+            state,
+            decision,
+            tool_result,
+            history,
+            input_guardrail,
+            output_guardrail,
+        )
+        return state, AgentTrace(
+            turn_index=turn_index,
+            customer_text=turn.text,
+            decision=decision,
+            tool_result=tool_result,
+            input_guardrail=input_guardrail,
+            output_guardrail=output_guardrail,
+            answer_generation_attempts=answer_generation_attempts,
         )
 
     def decide(self, history: list[GoldenTurn]) -> RouterDecision:
@@ -720,7 +746,11 @@ class RuleBasedAgent:
     def _should_create_ticket(self, text: str, intent: IntentName) -> bool:
         lowered = text.lower()
         if intent is IntentName.MISSING_REFUND:
-            return "cần được hỗ trợ" in lowered or "tạo giúp" in lowered
+            return (
+                "cần được hỗ trợ" in lowered
+                or "tạo giúp" in lowered
+                or "tạo lại" in lowered
+            )
         return "fail liên tục" in lowered or "tạo giúp" in lowered
 
     def _handoff_outcome(self, history: list[GoldenTurn], intent: IntentName) -> str:
@@ -807,16 +837,17 @@ class RuleBasedAgent:
                 and (state.status is CaseStatus.TRIAGING or state.status is CaseStatus.IN_PROGRESS)
             ):
                 state = state.transition_to(CaseStatus.RESOLVED)
+        elif decision.action is CaseAction.EXECUTE_TOOL and state.status is CaseStatus.HANDED_OFF:
+            state = state.transition_to(CaseStatus.IN_PROGRESS)
         elif state.status is CaseStatus.TRIAGING or state.status is CaseStatus.WAITING_FOR_CUSTOMER:
             if state.status is CaseStatus.WAITING_FOR_CUSTOMER:
                 state = state.transition_to(CaseStatus.IN_PROGRESS)
             else:
                 state = state.transition_to(CaseStatus.IN_PROGRESS)
+        if decision.customer_response is None:
+            return state
         return state.add_message(
-            ConversationMessage(
-                role=MessageRole.AGENT,
-                content=decision.customer_response or decision.response,
-            )
+            ConversationMessage(role=MessageRole.AGENT, content=decision.customer_response)
         )
 
     def _call_tool(self, decision: RouterDecision, backend: MockBackend) -> ToolResult | None:

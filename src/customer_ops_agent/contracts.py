@@ -380,7 +380,9 @@ _ALLOWED_TRANSITIONS: Mapping[CaseStatus, frozenset[CaseStatus]] = {
         {CaseStatus.IN_PROGRESS, CaseStatus.HANDED_OFF}
     ),
     CaseStatus.RESOLVED: frozenset({CaseStatus.CLOSED, CaseStatus.IN_PROGRESS}),
-    CaseStatus.HANDED_OFF: frozenset({CaseStatus.RESOLVED, CaseStatus.CLOSED}),
+    CaseStatus.HANDED_OFF: frozenset(
+        {CaseStatus.IN_PROGRESS, CaseStatus.RESOLVED, CaseStatus.CLOSED}
+    ),
     CaseStatus.CLOSED: frozenset(),
 }
 

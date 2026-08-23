@@ -119,8 +119,8 @@ considered release-ready.
 
 The current offline results are:
 
-- `65/65` unit and integration tests;
-- `93/93` cases in the unified release gate;
+- `77/77` unit and integration tests;
+- `103/103` cases in the unified release gate;
 - `60` synthetic routing cases;
 - `33` source-backed and boundary cases;
 - `8/8` automated QA checks for the flagship cashback review pack;
@@ -133,6 +133,12 @@ Run the complete release gate:
 
 ```bash
 uv run python scripts/run_release_gate.py
+```
+
+Run the multi-turn cashback process demo:
+
+```bash
+uv run python scripts/run_process_demo.py
 ```
 
 Run all tests:
@@ -177,7 +183,7 @@ uv run --env-file .env --extra openai python scripts/run_answer_qa.py \
 The roadmap deliberately increases operational capability only after the
 preceding safety and evaluation layer is working.
 
-### Phase 1 — Bounded prototype *(current)*
+### Phase 1 — Bounded prototype *(completed)*
 
 - typed case and intent contracts;
 - deterministic guardrails and policy decisions;
@@ -186,7 +192,7 @@ preceding safety and evaluation layer is working.
 - component, workflow, boundary, and end-to-end evaluation;
 - human-review artifact and release gate.
 
-### Phase 2 — Human-reviewed flagship
+### Phase 2 — Human-reviewed flagship *(in progress)*
 
 - expand the flagship set to 30–50 diverse conversations;
 - have domain reviewers approve or reject every answer;
@@ -194,14 +200,17 @@ preceding safety and evaluation layer is working.
 - turn every reviewed failure into a regression case;
 - track handoff rate, answer acceptance, review disagreement, and latency.
 
-### Phase 3 — Process orchestration
+### Phase 3 — Process orchestration *(first slice implemented)*
 
-- express multi-step operational processes as versioned, human-readable
-  workflow definitions;
-- add simulated users for multi-turn conversations;
-- model state-changing tools and idempotency explicitly;
-- grade final environment state, not only the final message;
-- add workflow-level plans that update as new facts arrive.
+- `cashback_not_received_v2` is a versioned Markdown process definition;
+- multi-turn runs preserve the case state and simulated backend;
+- the workflow plan records completed and active steps with evidence;
+- ticket creation is stateful and idempotent;
+- process evals grade tool sequence, final case state, and backend audit state.
+
+The next process-orchestration increment is an LLM-grounded user simulator and
+more state-changing workflows. The current process runner intentionally keeps
+financial mutations out of scope.
 
 ### Phase 4 — Shadow and controlled pilot
 

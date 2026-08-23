@@ -9,6 +9,7 @@ from typing import Any
 
 from customer_ops_agent.agent_harness import LLMAgent
 from customer_ops_agent.eval_runner import run_evaluation
+from customer_ops_agent.processes import run_cashback_process_evaluation
 
 
 ROOT = Path(__file__).parents[1]
@@ -43,6 +44,23 @@ def run_release_gate(
                 ],
             }
         )
+
+    process_summary = run_cashback_process_evaluation(
+        ROOT / "data/golden/cashback_process_v2.jsonl",
+        agent=agent,
+    )
+    reports.append(
+        {
+            "name": "cashback_process_v2",
+            "golden_set": "data/golden/cashback_process_v2.jsonl",
+            "total": process_summary.total,
+            "passed": process_summary.passed,
+            "pass_rate": process_summary.pass_rate,
+            "failed_cases": [
+                grade.case_id for grade in process_summary.grades if not grade.passed
+            ],
+        }
+    )
 
     total = sum(report["total"] for report in reports)
     passed = sum(report["passed"] for report in reports)
