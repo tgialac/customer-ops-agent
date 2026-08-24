@@ -276,7 +276,13 @@ def evaluate_cashback_policy(
             action=CashbackPolicyAction.EXPLAIN_MONTHLY_LIMIT,
             message_key="cashback_monthly_limit_reached",
         )
-    if request.elapsed_hours is not None and request.elapsed_hours > 24:
+    if request.elapsed_hours is None:
+        return CashbackPolicyDecision(
+            action=CashbackPolicyAction.HANDOFF,
+            message_key="cashback_elapsed_time_unknown",
+            handoff_required=True,
+        )
+    if request.elapsed_hours > 24:
         return CashbackPolicyDecision(
             action=CashbackPolicyAction.HANDOFF,
             message_key="cashback_overdue_help",
@@ -320,7 +326,9 @@ def evaluate_bank_transfer_policy(
         )
 
     if request.status is TransactionStatus.PENDING:
-        if request.elapsed_working_days is not None and request.elapsed_working_days > 2:
+        if request.elapsed_working_days is None:
+            return _overdue_handoff("pending_transfer_elapsed_time_unknown")
+        if request.elapsed_working_days > 2:
             return _overdue_handoff("pending_transfer_overdue")
         return BankTransferPolicyDecision(
             action=BankTransferPolicyAction.EXPLAIN_PENDING_RECONCILIATION,
@@ -328,7 +336,9 @@ def evaluate_bank_transfer_policy(
         )
 
     if request.status is TransactionStatus.COMPLETED:
-        if request.elapsed_working_days is not None and request.elapsed_working_days > 3:
+        if request.elapsed_working_days is None:
+            return _overdue_handoff("successful_transfer_elapsed_time_unknown")
+        if request.elapsed_working_days > 3:
             return _overdue_handoff("successful_transfer_overdue")
         return BankTransferPolicyDecision(
             action=BankTransferPolicyAction.EXPLAIN_BENEFICIARY_POSTING_DELAY,
@@ -336,10 +346,9 @@ def evaluate_bank_transfer_policy(
         )
 
     if request.status in {TransactionStatus.FAILED, TransactionStatus.REVERSED}:
-        if (
-            request.return_elapsed_working_days is not None
-            and request.return_elapsed_working_days > 2
-        ):
+        if request.return_elapsed_working_days is None:
+            return _overdue_handoff("failed_transfer_return_elapsed_time_unknown")
+        if request.return_elapsed_working_days > 2:
             return _overdue_handoff("failed_transfer_return_overdue")
 
         destination = {

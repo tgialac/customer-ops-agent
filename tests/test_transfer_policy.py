@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from customer_ops_agent.contracts import TransactionStatus
 from customer_ops_agent.knowledge import KnowledgeStore
 from customer_ops_agent.policies import (
@@ -63,6 +65,49 @@ def test_pending_transfer_uses_momo_reconciliation_window() -> None:
     assert overdue.action is BankTransferPolicyAction.HANDOFF
 
 
+@pytest.mark.parametrize(
+    ("status", "elapsed_working_days", "return_elapsed_working_days", "message_key"),
+    [
+        (
+            TransactionStatus.PENDING,
+            None,
+            None,
+            "pending_transfer_elapsed_time_unknown",
+        ),
+        (
+            TransactionStatus.COMPLETED,
+            None,
+            None,
+            "successful_transfer_elapsed_time_unknown",
+        ),
+        (
+            TransactionStatus.FAILED,
+            None,
+            None,
+            "failed_transfer_return_elapsed_time_unknown",
+        ),
+    ],
+)
+def test_missing_verified_time_handoffs_without_a_timing_promise(
+    status: TransactionStatus,
+    elapsed_working_days: int | None,
+    return_elapsed_working_days: int | None,
+    message_key: str,
+) -> None:
+    decision = evaluate_bank_transfer_policy(
+        BankTransferPolicyInput(
+            transaction_id="txn_demo_209",
+            status=status,
+            elapsed_working_days=elapsed_working_days,
+            return_elapsed_working_days=return_elapsed_working_days,
+        )
+    )
+
+    assert decision.action is BankTransferPolicyAction.HANDOFF
+    assert decision.handoff_required is True
+    assert decision.message_key == message_key
+
+
 def test_successful_transfer_uses_beneficiary_posting_window() -> None:
     decision = evaluate_bank_transfer_policy(
         BankTransferPolicyInput(
@@ -82,6 +127,7 @@ def test_failed_transfer_explains_return_destination_without_promising_refund() 
             transaction_id="txn_demo_204",
             status=TransactionStatus.FAILED,
             funding_source=FundingSource.WALLET,
+            return_elapsed_working_days=2,
         )
     )
     bank_decision = evaluate_bank_transfer_policy(

@@ -39,6 +39,15 @@ def test_cashback_policy_hands_off_after_public_window() -> None:
     assert decision.message_key == "cashback_overdue_help"
 
 
+def test_cashback_policy_hands_off_when_elapsed_time_is_unavailable() -> None:
+    decision = evaluate_cashback_policy(
+        CashbackPolicyInput(transaction_id="txn_demo_200")
+    )
+
+    assert decision.handoff_required is True
+    assert decision.message_key == "cashback_elapsed_time_unknown"
+
+
 def test_cashback_missing_id_asks_for_cashback_transaction_id() -> None:
     run = RuleBasedAgent().run(
         "cashback-runtime-000",

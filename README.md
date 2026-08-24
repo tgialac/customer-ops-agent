@@ -157,7 +157,7 @@ uv run --env-file .env --extra openai python scripts/run_simulated_process.py \
 Run all tests:
 
 ```bash
-uv run python -m pytest -q
+uv run --extra test python -m pytest -q
 ```
 
 ## Human review and pitch demo
