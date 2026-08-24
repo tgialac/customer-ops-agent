@@ -245,13 +245,21 @@ golden set and to migrate a second operational workflow.
 
 ## Next implementation queue
 
-The following order keeps new capability behind evidence, authorization, and
-state validation:
+When resuming work, keep new capability behind evidence, authorization, and
+state validation. Run the CI checks locally first:
+
+```bash
+uv run --locked --extra test python -m pytest -q
+uv run --locked python scripts/run_release_gate.py
+```
+
+Then work through the following order:
 
 1. Complete domain review for the flagship answer pack; turn every rejected
    answer into a regression case and publish handoff/acceptance metrics.
 2. Expand simulated conversations to cover interruptions, contradictory facts,
-   repeated requests, tool failures, stale state, and resumed handoffs.
+   repeated requests, tool failures, stale state, missing verified timing, and
+   resumed handoffs.
 3. Migrate `bank_transfer_not_received` to the executable process framework,
    including reconciliation follow-up and return-destination checks.
 4. Add authenticated, read-only adapters behind explicit context scopes and

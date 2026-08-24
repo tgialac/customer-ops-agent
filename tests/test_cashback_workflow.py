@@ -106,3 +106,20 @@ def test_cashback_overdue_case_handoffs_without_answer_generation() -> None:
     assert run.final_decision.outcome is OutcomeName.CASHBACK_HANDOFF
     assert run.final_decision.response == "handoff"
     assert run.final_decision.customer_response
+
+
+def test_cashback_missing_elapsed_time_handoffs_after_lookup() -> None:
+    run = RuleBasedAgent().run(
+        "cashback-missing-time-001",
+        _turn("Cashback của txn_demo_204 chưa về."),
+        _backend("txn_demo_204", cashback_elapsed_hours=None),
+    )
+
+    assert run.trace[0].tool_result is not None
+    assert run.trace[0].tool_result.tool_name is ToolName.GET_REFUND_STATUS
+    assert run.case_state.context.refund is not None
+    assert run.case_state.context.refund.cashback_elapsed_hours is None
+    assert run.final_decision.action is CaseAction.HANDOFF
+    assert run.final_decision.outcome is OutcomeName.CASHBACK_HANDOFF
+    assert run.final_decision.response == "handoff"
+    assert run.case_state.status is CaseStatus.HANDED_OFF
